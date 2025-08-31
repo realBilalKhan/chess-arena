@@ -8,7 +8,7 @@ import figlet from "figlet";
 import clear from "clear";
 import boxen from "boxen";
 
-class TerminalChess {
+class ChessArena {
   constructor() {
     this.chess = new Chess();
     this.socket = null;
@@ -16,7 +16,7 @@ class TerminalChess {
     this.playerColor = null;
     this.isMyTurn = false;
     this.serverUrl =
-      process.env.CHESS_SERVER_URL || "https://bilalkhan.hackclub.app:3000";
+      process.env.CHESS_SERVER_URL || "http://bilalkhan.hackclub.app:3456";
   }
 
   async start() {
@@ -564,5 +564,5 @@ class TerminalChess {
   }
 }
 
-const game = new TerminalChess();
+const game = new ChessArena();
 game.start().catch(console.error);

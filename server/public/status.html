@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>Server Status</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+  <h1>Chess Arena Server Status</h1>
+  <div id="status">Loading...</div>
+
+  <script>
+    async function checkStatus() {
+      try {
+        const response = await fetch('/');
+        const data = await response.json();
+        document.getElementById('status').innerHTML = `
+          <div class="status online">
+              <h3>✅ Server Online</h3>
+              <p>Active Games: ${data.activeGames}</p>
+              <p>Connected Players: ${data.connectedPlayers}</p>
+              <p>Uptime: ${Math.floor(data.uptime / 3600)}h ${Math.floor((data.uptime % 3600) / 60)}m</p>
+              <p>Last Updated: ${new Date(data.timestamp).toLocaleString()}</p>
+          </div>
+        `;
+      } catch (error) {
+        document.getElementById('status').innerHTML = `
+          <div class="status offline">
+              <h3>❌ Server Offline</h3>
+              <p>Unable to connect to the server</p>
+          </div>
+        `;
+      }
+    }
+
+    checkStatus();
+    setInterval(checkStatus, 30000);
+  </script>
+</body>
+
+</html>

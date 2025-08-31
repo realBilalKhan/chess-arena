@@ -14,7 +14,7 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "description": "Server for terminal chess multiplayer game",
   "dependencies": {
     "cors": "^2.8.5",

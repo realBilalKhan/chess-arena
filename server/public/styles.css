@@ -1,0 +1,22 @@
+body {
+  font-family: Arial, sans-serif;
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.status {
+  padding: 10px;
+  margin: 10px 0;
+  border-radius: 5px;
+}
+
+.online {
+  background: #d4edda;
+  color: #155724;
+}
+
+.offline {
+  background: #f8d7da;
+  color: #721c24;
+}
