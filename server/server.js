@@ -14,6 +14,7 @@ const io = new SocketIO(server, {
 
 app.use(cors());
 app.use(json());
+app.use(express.static("public"));
 
 const games = new Map();
 const playerToGame = new Map();
