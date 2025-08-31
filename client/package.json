@@ -21,6 +21,7 @@
   "license": "MIT",
   "description": "Play chess in your terminal with friends anywhere in the world",
   "dependencies": {
+    "boxen": "^8.0.1",
     "chalk": "^5.6.0",
     "chess.js": "^1.4.0",
     "clear": "^0.1.0",
