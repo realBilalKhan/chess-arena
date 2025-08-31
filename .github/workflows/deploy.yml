@@ -1,0 +1,35 @@
+name: Deploy to Nest
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+
+      - name: Install SSH key
+        uses: shimataro/ssh-key-action@v2
+        with:
+          key: ${{ secrets.NEST_SSH_KEY }}
+          known_hosts: ${{ secrets.NEST_KNOWN_HOSTS }}
+
+      - name: Deploy to Nest
+        run: |
+          ssh ${{ secrets.NEST_USERNAME }}@hackclub.app << 'EOF'
+            cd ~/chess-arena || git clone https://github.com/${{ github.repository }}.git ~/chess-arena
+            cd ~/chess-arena
+            git pull origin main
+            chmod +x deploy.sh
+            ./deploy.sh
+          EOF

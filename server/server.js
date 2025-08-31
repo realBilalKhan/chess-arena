@@ -32,6 +32,17 @@ app.get("/", (req, res) => {
     status: "Chess server is running",
     activeGames: games.size,
     connectedPlayers: playerToGame.size,
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
+    version: "1.0.0",
+  });
+});
+
+app.get("/health", (req, res) => {
+  res.json({
+    status: "healthy",
+    activeGames: games.size,
+    connectedPlayers: playerToGame.size,
   });
 });
 
@@ -145,6 +156,8 @@ setInterval(() => {
 }, 60000);
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
+server.listen(PORT, "0.0.0.0", () => {
   console.log(`Chess server running on port ${PORT}`);
+  console.log(`Active games: ${games.size}`);
+  console.log(`Connected players: ${playerToGame.size}`);
 });

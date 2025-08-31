@@ -15,7 +15,8 @@ class TerminalChess {
     this.roomCode = null;
     this.playerColor = null;
     this.isMyTurn = false;
-    this.serverUrl = process.env.CHESS_SERVER_URL || "http://localhost:3000";
+    this.serverUrl =
+      process.env.CHESS_SERVER_URL || "https://bilalkhan.hackclub.app:3000";
   }
 
   async start() {
