@@ -1,40 +1,86 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 
 <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Server Status</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 
 <body>
-  <h1>Chess Arena Server Status</h1>
-  <div id="status">Loading...</div>
+  <div class="container">
+    <div class="header">
+      <h1 class="title">Chess Arena</h1>
+      <div class="chess-pieces">♔ ♕ ♖ ♗ ♘ ♙</div>
+      <p class="subtitle">Server Status</p>
+    </div>
+
+    <div id="status"></div>
+  </div>
 
   <script>
     async function checkStatus() {
       try {
         const response = await fetch('/');
         const data = await response.json();
+
+        const uptimeHours = Math.floor(data.uptime / 3600);
+        const uptimeMinutes = Math.floor((data.uptime % 3600) / 60);
+
         document.getElementById('status').innerHTML = `
-          <div class="status online">
-              <h3>✅ Server Online</h3>
-              <p>Active Games: ${data.activeGames}</p>
-              <p>Connected Players: ${data.connectedPlayers}</p>
-              <p>Uptime: ${Math.floor(data.uptime / 3600)}h ${Math.floor((data.uptime % 3600) / 60)}m</p>
-              <p>Last Updated: ${new Date(data.timestamp).toLocaleString()}</p>
+          <div class="status-card online">
+            <div class="status-header">
+              <span class="status-icon">🟢</span>
+              <h3 class="status-title">Server Online</h3>
+            </div>
+            
+            <div class="stats-grid">
+              <div class="stat-item">
+                <span class="stat-value">${data.activeGames}</span>
+                <span class="stat-label">Active Games</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-value">${data.connectedPlayers}</span>
+                <span class="stat-label">Players Online</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-value">${uptimeHours}h ${uptimeMinutes}m</span>
+                <span class="stat-label">Uptime</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-value">✓</span>
+                <span class="stat-label">Status</span>
+              </div>
+            </div>
+            
+            <div class="last-updated">
+              Last updated: ${new Date(data.timestamp).toLocaleString()}
+            </div>
           </div>
         `;
       } catch (error) {
         document.getElementById('status').innerHTML = `
-          <div class="status offline">
-              <h3>❌ Server Offline</h3>
-              <p>Unable to connect to the server</p>
+          <div class="status-card offline">
+            <div class="status-header">
+              <span class="status-icon">🔴</span>
+              <h3 class="status-title">Server Offline</h3>
+            </div>
+            
+            <div class="error-message">
+              Unable to connect to the Chess Arena server. Please check your connection or try again later.
+            </div>
+            
+            <div class="last-updated">
+              Last check: ${new Date().toLocaleString()}
+            </div>
           </div>
         `;
       }
     }
 
     checkStatus();
+
     setInterval(checkStatus, 30000);
   </script>
 </body>

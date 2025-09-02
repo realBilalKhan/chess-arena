@@ -7,6 +7,15 @@ import inquirer from "inquirer";
 import figlet from "figlet";
 import clear from "clear";
 import boxen from "boxen";
+import { ThemeManager } from "./themes/index.js";
+import { ConfigManager } from "./config/config.js";
+import {
+  parseCliArgs,
+  showHelp,
+  listThemes,
+  validateTheme,
+} from "./utils/cliArgs.js";
+import { selectThemeInteractively } from "./utils/themeSelector.js";
 
 class ChessArena {
   constructor() {
@@ -15,8 +24,118 @@ class ChessArena {
     this.roomCode = null;
     this.playerColor = null;
     this.isMyTurn = false;
-    this.serverUrl =
-      process.env.CHESS_SERVER_URL || "http://bilalkhan.hackclub.app:3456";
+    this.configManager = new ConfigManager();
+    this.themeManager = new ThemeManager();
+
+    const savedTheme = this.configManager.getTheme();
+    if (savedTheme && savedTheme !== "classic") {
+      this.themeManager.setTheme(savedTheme);
+    }
+
+    this.handleCliArgs();
+  }
+
+  handleCliArgs() {
+    const args = parseCliArgs();
+
+    if (args.help) {
+      showHelp();
+      process.exit(0);
+    }
+
+    if (args.showConfig) {
+      this.showCurrentConfig();
+      process.exit(0);
+    }
+
+    if (args.resetConfig) {
+      this.resetConfig();
+      process.exit(0);
+    }
+
+    if (args.listThemes) {
+      listThemes();
+      process.exit(0);
+    }
+
+    if (args.previewThemes) {
+      this.previewAllThemes();
+      process.exit(0);
+    }
+
+    if (args.theme) {
+      if (!validateTheme(args.theme)) {
+        process.exit(1);
+      }
+      this.themeManager.setTheme(args.theme);
+      this.configManager.setTheme(args.theme);
+      console.log(
+        chalk.green(
+          `🎨 Theme permanently set to: ${
+            this.themeManager.getCurrentTheme().name
+          }`
+        )
+      );
+    }
+
+    if (args.serverUrl) {
+      this.configManager.setServerUrl(args.serverUrl);
+      console.log(
+        chalk.green(`🌐 Server URL permanently set to: ${args.serverUrl}`)
+      );
+    }
+  }
+
+  showCurrentConfig() {
+    const config = this.configManager.getConfig();
+    const stats = this.configManager.getConfigStats();
+
+    console.log(chalk.yellow.bold("\n🔧 Current Configuration\n"));
+
+    console.log(`${chalk.bold("Theme:")} ${chalk.cyan(config.theme)}`);
+    console.log(`${chalk.bold("Server URL:")} ${chalk.cyan(config.serverUrl)}`);
+    console.log(
+      `${chalk.bold("Config File:")} ${chalk.gray(
+        this.configManager.getConfigPath()
+      )}`
+    );
+
+    if (stats.exists) {
+      console.log(
+        `${chalk.bold("Last Updated:")} ${chalk.gray(
+          stats.lastUpdated || "Unknown"
+        )}`
+      );
+    } else {
+      console.log(chalk.gray("Using default settings (no config file found)"));
+    }
+
+    console.log(`\n${chalk.gray("Use --reset-config to restore defaults")}`);
+  }
+
+  resetConfig() {
+    console.log(chalk.yellow("🔄 Resetting configuration to defaults..."));
+
+    const success = this.configManager.resetToDefaults();
+
+    if (success) {
+      console.log(chalk.green("✓ Configuration reset successfully!"));
+      console.log(chalk.gray("Theme: classic"));
+      console.log(chalk.gray("Server: http://bilalkhan.hackclub.app:3456"));
+    } else {
+      console.log(chalk.red("❌ Failed to reset configuration"));
+    }
+  }
+
+  previewAllThemes() {
+    const themeNames = this.themeManager.getThemeNames();
+    console.log(chalk.yellow.bold("🎨 All Theme Previews\n"));
+
+    themeNames.forEach((themeName) => {
+      this.themeManager.setTheme(themeName);
+      this.themeManager.previewTheme();
+      console.log("\n" + "─".repeat(50) + "\n");
+    });
   }
 
   async start() {
@@ -25,17 +144,51 @@ class ChessArena {
       chalk.yellow(figlet.textSync("Chess Arena", { horizontalLayout: "full" }))
     );
 
+    const currentTheme = this.themeManager.getCurrentTheme();
+    console.log(
+      boxen(
+        `${chalk.bold("Current Theme:")} ${chalk.cyan(currentTheme.name)}\n` +
+          `${chalk.gray(currentTheme.description)}`,
+        {
+          padding: 1,
+          margin: 1,
+          borderStyle: "round",
+          borderColor: currentTheme.borderColor || "cyan",
+        }
+      )
+    );
+
     const { action } = await inquirer.prompt([
       {
         type: "list",
         name: "action",
         message: "What would you like to do?",
-        choices: ["Create a new game", "Join a game", "Exit"],
+        choices: [
+          "Create a new game",
+          "Join a game",
+          "🎨 Change theme",
+          "Exit",
+        ],
       },
     ]);
 
     if (action === "Exit") {
       process.exit(0);
+    }
+
+    if (action === "🎨 Change theme") {
+      const result = await selectThemeInteractively(this.themeManager);
+      if (result && result.themeName) {
+        this.themeManager.setTheme(result.themeName);
+        this.configManager.setTheme(result.themeName);
+        console.log(
+          chalk.green(
+            `\n🎨 Theme changed to: ${this.themeManager.getCurrentTheme().name}`
+          )
+        );
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+      }
+      return this.start();
     }
 
     this.connectToServer();
@@ -48,7 +201,8 @@ class ChessArena {
   }
 
   connectToServer() {
-    this.socket = io(this.serverUrl, {
+    const serverUrl = this.configManager.getServerUrl();
+    this.socket = io(serverUrl, {
       transports: ["websocket", "polling"],
     });
 
@@ -65,7 +219,7 @@ class ChessArena {
           padding: 1,
           margin: 1,
           borderStyle: "round",
-          borderColor: "cyan",
+          borderColor: this.themeManager.getBorderColor(),
         })
       );
       console.log(chalk.gray("📤 Share this code with your friend"));
@@ -163,64 +317,53 @@ class ChessArena {
     const displayFiles =
       this.playerColor === "white" ? files : [...files].reverse();
 
-    console.log("     ╔" + "════╤════╤════╤════╤════╤════╤════╤════" + "╗");
-
     console.log(
-      "     ║  " +
-        displayFiles
-          .map((f) => chalk.bold.magenta(f.toUpperCase()))
-          .join("  │  ") +
-        "  ║"
+      "     " + displayFiles.map((f) => chalk.bold.gray(f)).join("       ")
     );
-    console.log("     ╟" + "────┼────┼────┼────┼────┼────┼────┼────" + "╢");
 
     ranks.forEach((rank, rankIndex) => {
       const row = board[8 - rank];
-      let rowDisplay = "  " + chalk.bold.magenta(rank) + "  ║";
 
-      row.forEach((square, fileIndex) => {
-        const file = this.playerColor === "white" ? fileIndex : 7 - fileIndex;
-        const piece = row[file];
+      for (let line = 0; line < 3; line++) {
+        let rowDisplay = "";
 
-        const isLightSquare = (rank + file) % 2 === 0;
-        const squareBg = isLightSquare
-          ? chalk.bgHex("#eeeed2")
-          : chalk.bgHex("#769656");
+        if (line === 1) {
+          rowDisplay += chalk.bold.gray(rank) + " ";
+        } else {
+          rowDisplay += "  ";
+        }
 
-        let pieceDisplay = "    ";
-        if (piece) {
-          const symbol = this.getPieceSymbol(piece);
-          if (piece.color === "white") {
-            pieceDisplay = " " + chalk.bold.white(symbol) + "  ";
-          } else {
-            pieceDisplay = " " + chalk.bold.hex("#2C2C2C")(symbol) + "  ";
+        row.forEach((square, fileIndex) => {
+          const file = this.playerColor === "white" ? fileIndex : 7 - fileIndex;
+          const piece = row[file];
+
+          const isLightSquare = (rank + file) % 2 === 0;
+          const squareBg = this.themeManager.getSquareStyle(isLightSquare);
+
+          let pieceDisplay = "        ";
+
+          if (line === 1 && piece) {
+            const symbol = this.themeManager.getPieceSymbol(piece);
+            const pieceColor = this.themeManager.getPieceColor(
+              piece.color === "w"
+            );
+            pieceDisplay = "   " + pieceColor(symbol) + "    ";
           }
+
+          rowDisplay += squareBg(pieceDisplay);
+        });
+
+        if (line === 1) {
+          rowDisplay += " " + chalk.bold.gray(rank);
         }
 
-        rowDisplay += squareBg(pieceDisplay);
-
-        if (fileIndex < 7) {
-          rowDisplay += "│";
-        }
-      });
-
-      rowDisplay += "║ " + chalk.bold.magenta(rank);
-      console.log(rowDisplay);
-
-      if (rankIndex < 7) {
-        console.log("     ╟" + "────┼────┼────┼────┼────┼────┼────┼────" + "╢");
+        console.log(rowDisplay);
       }
     });
 
-    console.log("     ╟" + "────┼────┼────┼────┼────┼────┼────┼────" + "╢");
     console.log(
-      "     ║  " +
-        displayFiles
-          .map((f) => chalk.bold.magenta(f.toUpperCase()))
-          .join("  │  ") +
-        "  ║"
+      "     " + displayFiles.map((f) => chalk.bold.gray(f)).join("       ")
     );
-    console.log("     ╚" + "════╧════╧════╧════╧════╧════╧════╧════" + "╝");
     console.log();
 
     const lines = [];
@@ -257,7 +400,7 @@ class ChessArena {
         padding: 1,
         margin: 1,
         borderStyle: "round",
-        borderColor: "cyan",
+        borderColor: this.themeManager.getBorderColor(),
         title: "Status",
         titleAlignment: "center",
       })
@@ -285,9 +428,9 @@ class ChessArena {
         };
 
         if (capturedPiece.color === "white") {
-          capturedWhite.push(this.getPieceSymbol(capturedPiece));
+          capturedWhite.push(this.themeManager.getPieceSymbol(capturedPiece));
         } else {
-          capturedBlack.push(this.getPieceSymbol(capturedPiece));
+          capturedBlack.push(this.themeManager.getPieceSymbol(capturedPiece));
         }
       }
     });
@@ -303,29 +446,6 @@ class ChessArena {
         );
       }
     }
-  }
-
-  getPieceSymbol(piece) {
-    const symbols = {
-      white: {
-        k: "♔",
-        q: "♕",
-        r: "♖",
-        b: "♗",
-        n: "♘",
-        p: "♙",
-      },
-      black: {
-        k: "♚",
-        q: "♛",
-        r: "♜",
-        b: "♝",
-        n: "♞",
-        p: "♟",
-      },
-    };
-    const colorKey = piece.color === "w" ? "white" : "black";
-    return symbols[colorKey][piece.type] || piece.type.toUpperCase();
   }
 
   async playGame() {
@@ -382,9 +502,9 @@ class ChessArena {
       const movesList = Object.keys(movesByPiece)
         .map((key) => {
           const [type, from] = key.split("-");
-          const pieceSymbol = this.getPieceSymbol({
+          const pieceSymbol = this.themeManager.getPieceSymbol({
             type,
-            color: this.chess.turn() === "w" ? "white" : "black",
+            color: this.chess.turn() === "w" ? "w" : "b",
           });
           const movesStr = movesByPiece[key].join(", ");
           return `${pieceSymbol} ${from}: ${movesStr}`;
@@ -396,7 +516,7 @@ class ChessArena {
           padding: 1,
           margin: 1,
           borderStyle: "single",
-          borderColor: "cyan",
+          borderColor: this.themeManager.getBorderColor(),
           title: "Legal Moves",
           titleAlignment: "center",
         })
@@ -467,7 +587,7 @@ class ChessArena {
 
     let title = "Game Over";
     let message = "";
-    let borderColor = "yellow";
+    let borderColor = this.themeManager.getBorderColor();
 
     if (this.chess.isCheckmate()) {
       const winner = this.chess.turn() === "w" ? "Black" : "White";
@@ -558,7 +678,7 @@ class ChessArena {
       }
       this.start();
     } else {
-      console.log(chalk.yellow("\nThanks for playing Terminal Chess!"));
+      console.log(chalk.yellow("\nThanks for playing Chess Arena!"));
       process.exit(0);
     }
   }
