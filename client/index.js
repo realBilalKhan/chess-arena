@@ -324,6 +324,9 @@ class ChessArena {
     ranks.forEach((rank, rankIndex) => {
       const row = board[8 - rank];
 
+      const displayRow =
+        this.playerColor === "white" ? row : [...row].reverse();
+
       for (let line = 0; line < 3; line++) {
         let rowDisplay = "";
 
@@ -333,11 +336,11 @@ class ChessArena {
           rowDisplay += "  ";
         }
 
-        row.forEach((square, fileIndex) => {
-          const file = this.playerColor === "white" ? fileIndex : 7 - fileIndex;
-          const piece = row[file];
+        displayRow.forEach((piece, displayIndex) => {
+          const actualFileIndex =
+            this.playerColor === "white" ? displayIndex : 7 - displayIndex;
 
-          const isLightSquare = (rank + file) % 2 === 0;
+          const isLightSquare = (rank + actualFileIndex) % 2 === 0;
           const squareBg = this.themeManager.getSquareStyle(isLightSquare);
 
           let pieceDisplay = "        ";
