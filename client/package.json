@@ -4,20 +4,23 @@
   "type": "module",
   "main": "index.js",
   "bin": {
-    "chess-arena": "./index.js"
+    "chess-arena": "./index.js",
+    "install-stockfish": "./utils/installStockfish.js"
   },
   "scripts": {
     "start": "node index.js",
     "dev": "node --watch index.js",
     "themes": "node index.js --list-themes",
     "preview": "node index.js --preview-themes",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "install-stockfish": "node utils/installStockfish.js"
   },
   "keywords": [
     "chess",
     "terminal",
     "game",
     "multiplayer",
+    "stockfish",
     "cli"
   ],
   "author": "M. Bilal Khan <intelligencexempire@gmail.com>",
@@ -30,7 +33,8 @@
     "clear": "^0.1.0",
     "figlet": "^1.8.2",
     "inquirer": "^12.9.4",
-    "socket.io-client": "^4.8.1"
+    "socket.io-client": "^4.8.1",
+    "stockfish": "^17.1.0"
   },
   "engines": {
     "node": ">=14.0.0"

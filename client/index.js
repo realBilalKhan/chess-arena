@@ -16,6 +16,7 @@ import {
   validateTheme,
 } from "./utils/cliArgs.js";
 import { selectThemeInteractively } from "./utils/themeSelector.js";
+import OfflineGame from "./utils/offlineGame.js";
 
 class ChessArena {
   constructor() {
@@ -164,8 +165,8 @@ class ChessArena {
         name: "action",
         message: "What would you like to do?",
         choices: [
-          "Create a new game",
-          "Join a game",
+          "🌐 Play Online with a Friend",
+          "🤖 Play Offline vs Stockfish",
           "🎨 Change theme",
           "Exit",
         ],
@@ -191,12 +192,56 @@ class ChessArena {
       return this.start();
     }
 
+    if (action === "🤖 Play Offline vs Stockfish") {
+      await this.startOfflineGame();
+      return;
+    }
+
+    const { onlineAction } = await inquirer.prompt([
+      {
+        type: "list",
+        name: "onlineAction",
+        message: "Online Game Options:",
+        choices: ["Create a new game", "Join a game", "Back"],
+      },
+    ]);
+
+    if (onlineAction === "Back") {
+      return this.start();
+    }
+
     this.connectToServer();
 
-    if (action === "Create a new game") {
+    if (onlineAction === "Create a new game") {
       await this.createGame();
     } else {
       await this.joinGame();
+    }
+  }
+
+  async startOfflineGame() {
+    const offlineGame = new OfflineGame(this.themeManager);
+
+    const initialized = await offlineGame.initialize();
+    if (!initialized) {
+      console.log(chalk.yellow("\n⏎ Press Enter to return to main menu..."));
+      await inquirer.prompt([
+        {
+          type: "input",
+          name: "continue",
+          message: "",
+        },
+      ]);
+      return this.start();
+    }
+
+    try {
+      await offlineGame.playGame();
+      await this.askPlayAgain();
+    } catch (error) {
+      console.error(chalk.red("Game error:", error.message));
+      offlineGame.cleanup();
+      await this.askPlayAgain();
     }
   }
 
@@ -469,8 +514,7 @@ class ChessArena {
       {
         type: "input",
         name: "moveInput",
-        message:
-          'Enter your move (e.g. e2-e4), or type "help" for moves / "quit" to exit:',
+        message: 'Your move (e.g. e2-e4) | "help", "quit":',
         validate: (input) => {
           if (input.toLowerCase() === "help") return true;
           if (input.toLowerCase() === "quit") return true;

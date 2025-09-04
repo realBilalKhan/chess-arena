@@ -1,8 +1,43 @@
-# Chess Arena
+<h1 align="center">Chess Arena</h1>
 
 <p align="center">
   <img src="https://github.com/realBilalKhan/chess-arena/workflows/Deploy%20to%20Nest/badge.svg" alt="Deploy Status">
+  <img src="https://img.shields.io/badge/node-%3E%3D14.0.0-339933?style=flat&logo=node.js&logoColor=white" alt="Node.js Version">
+  <img src="https://img.shields.io/npm/v/chess-arena?style=flat&logo=npm&logoColor=white&color=cb3837" alt="npm Version">
 </p>
+
+## Quick Start
+
+```bash
+# Install the game
+npm install -g chess-arena
+
+# Start playing
+chess-arena
+```
+
+## For Offline Play (vs Stockfish AI)
+
+To play offline against the computer, you need to install the Stockfish chess engine.
+
+### Easy Installation (Recommended)
+
+Chess Arena includes an installation helper:
+
+```bash
+# Run the built-in installer
+install-stockfish
+```
+
+### Manual Installation
+
+If you prefer to install Stockfish manually, follow the official instructions at [Stockfish Installation Guide](https://stockfishchess.org/download/).
+
+### Verify Installation
+
+```bash
+stockfish --version
+```
 
 ## Command Line Options
 
@@ -16,6 +51,7 @@
 | `chess-arena -h`         | Show comprehensive help message              |
 | `chess-arena -c`         | Show current saved configuration             |
 | `chess-arena -r`         | Reset all settings to defaults               |
+| `install-stockfish`      | Install Stockfish for offline play           |
 
 ## Creating Custom Themes
 
@@ -40,10 +76,11 @@ newTheme: {
 ## NPM Scripts
 
 ```bash
-npm start           # Start the game
-npm run dev         # Start with file watching
-npm run themes      # List available themes
-npm run preview     # Preview all themes
+npm start               # Start the game
+npm run dev            # Start with file watching
+npm run themes         # List available themes
+npm run preview        # Preview all themes
+npm run install-stockfish  # Install Stockfish engine
 ```
 
 ## Config File Location
