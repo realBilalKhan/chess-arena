@@ -17,6 +17,8 @@ import {
 } from "./utils/cliArgs.js";
 import { selectThemeInteractively } from "./utils/themeSelector.js";
 import OfflineGame from "./utils/offlineGame.js";
+import BoardRenderer from "./utils/boardRenderer.js";
+import MoveInputHandler from "./utils/moveInputHandler.js";
 
 class ChessArena {
   constructor() {
@@ -34,6 +36,11 @@ class ChessArena {
     }
 
     this.handleCliArgs();
+    this.boardRenderer = new BoardRenderer(this.themeManager);
+    this.moveInputHandler = new MoveInputHandler(
+      this.boardRenderer,
+      this.themeManager
+    );
   }
 
   handleCliArgs() {
@@ -372,115 +379,20 @@ class ChessArena {
   }
 
   displayBoard() {
-    clear();
-
-    const board = this.chess.board();
-    const files = ["a", "b", "c", "d", "e", "f", "g", "h"];
-
-    const ranks =
-      this.playerColor === "white"
-        ? [8, 7, 6, 5, 4, 3, 2, 1]
-        : [1, 2, 3, 4, 5, 6, 7, 8];
-    const displayFiles =
-      this.playerColor === "white" ? files : [...files].reverse();
-
-    console.log(
-      "     " + displayFiles.map((f) => chalk.bold.gray(f)).join("       ")
-    );
-
-    ranks.forEach((rank, rankIndex) => {
-      const row = board[8 - rank];
-
-      const displayRow =
-        this.playerColor === "white" ? row : [...row].reverse();
-
-      for (let line = 0; line < 3; line++) {
-        let rowDisplay = "";
-
-        if (line === 1) {
-          rowDisplay += chalk.bold.gray(rank) + " ";
-        } else {
-          rowDisplay += "  ";
-        }
-
-        displayRow.forEach((piece, displayIndex) => {
-          const actualFileIndex =
-            this.playerColor === "white" ? displayIndex : 7 - displayIndex;
-
-          const isLightSquare = (rank + actualFileIndex) % 2 === 0;
-          const squareBg = this.themeManager.getSquareStyle(isLightSquare);
-
-          let pieceDisplay = "        ";
-
-          if (line === 1 && piece) {
-            const symbol = this.themeManager.getPieceSymbol(piece);
-            const pieceColor = this.themeManager.getPieceColor(
-              piece.color === "w"
-            );
-            pieceDisplay = "   " + pieceColor(symbol) + "    ";
-          }
-
-          rowDisplay += squareBg(pieceDisplay);
-        });
-
-        if (line === 1) {
-          rowDisplay += " " + chalk.bold.gray(rank);
-        }
-
-        console.log(rowDisplay);
-      }
+    this.boardRenderer.renderBoard(this.chess, this.playerColor, {
+      clear: true,
     });
-
-    console.log(
-      "     " + displayFiles.map((f) => chalk.bold.gray(f)).join("       ")
+    ``;
+    this.boardRenderer.displayStatus(
+      this.chess,
+      this.playerColor,
+      this.isMyTurn,
+      {
+        opponent: this.roomCode
+          ? `Online Player (Room: ${this.roomCode})`
+          : null,
+      }
     );
-    console.log();
-
-    const lines = [];
-
-    if (this.chess.inCheck()) {
-      lines.push(
-        chalk.redBright.bold("⚠️  CHECK! Your king is under attack!\n")
-      );
-    }
-
-    const currentTurn = this.chess.turn() === "w" ? "White" : "Black";
-    const turnColor =
-      this.chess.turn() === "w" ? chalk.white : chalk.hex("#2C2C2C");
-    lines.push(
-      `${chalk.bold("Current Turn:")} ${turnColor.bold(
-        `${currentTurn} ${this.chess.turn() === "w" ? "♔" : "♚"}`
-      )}`
-    );
-
-    const yourSymbol = this.playerColor === "white" ? "♔" : "♚";
-    lines.push(
-      `${chalk.bold("You are:")} ${chalk.cyan.bold(
-        `${this.playerColor.toUpperCase()} ${yourSymbol}`
-      )}`
-    );
-
-    const statusMsg = this.isMyTurn
-      ? chalk.greenBright.bold("YOUR TURN!")
-      : chalk.yellowBright("Waiting for opponent...");
-    lines.push(`${chalk.bold("Status:")} ${statusMsg}`);
-
-    console.log(
-      boxen(lines.join("\n"), {
-        padding: 1,
-        margin: 1,
-        borderStyle: "round",
-        borderColor: this.themeManager.getBorderColor(),
-        title: "Status",
-        titleAlignment: "center",
-      })
-    );
-
-    const moveCount = this.chess.history().length;
-    if (moveCount > 0) {
-      const lastMove = this.chess.history()[moveCount - 1];
-      console.log(chalk.gray(`\n  Last move: ${lastMove} (Move ${moveCount})`));
-    }
 
     this.displayCapturedPieces();
   }
@@ -529,124 +441,81 @@ class ChessArena {
   }
 
   async promptMove() {
-    const moves = this.chess.moves({ verbose: true });
-    const moveStrings = moves.map((m) => `${m.from}-${m.to}`);
+    const result = await this.moveInputHandler.promptMove(
+      this.chess,
+      this.playerColor
+    );
 
-    const { moveInput } = await inquirer.prompt([
-      {
-        type: "input",
-        name: "moveInput",
-        message: 'Your move (e.g. e2-e4) | "help", "quit":',
-        validate: (input) => {
-          if (input.toLowerCase() === "help") return true;
-          if (input.toLowerCase() === "quit") return true;
+    switch (result.command) {
+      case "continue":
+        this.displayBoard();
+        return this.promptMove();
 
-          const parts = input.split("-");
-          if (parts.length !== 2)
-            return "Invalid format. Use: from-to (e.g., e2-e4)";
+      case "clear":
+        this.displayBoard();
+        return this.promptMove();
 
-          const [from, to] = parts;
-          const move = moves.find((m) => m.from === from && m.to === to);
+      case "hint":
+        console.log(chalk.cyan("💡 Hint feature not available in online mode"));
+        return this.promptMove();
 
-          if (!move) {
-            return 'Illegal move. Type "help" to see legal moves.';
-          }
+      case "quit":
+        const { confirmQuit } = await inquirer.prompt([
+          {
+            type: "confirm",
+            name: "confirmQuit",
+            message: chalk.red("Are you sure you want to quit?"),
+            default: false,
+          },
+        ]);
 
-          return true;
-        },
-      },
-    ]);
-
-    if (moveInput.toLowerCase() === "help") {
-      const movesByPiece = {};
-      moves.forEach((move) => {
-        const piece = this.chess.get(move.from);
-        const key = `${piece.type}-${move.from}`;
-        if (!movesByPiece[key]) {
-          movesByPiece[key] = [];
+        if (confirmQuit) {
+          console.log(chalk.red("\n👋 Game abandoned. See you next time!\n"));
+          process.exit(0);
         }
-        movesByPiece[key].push(`${move.from}-${move.to}`);
-      });
+        return this.promptMove();
+    }
 
-      const movesList = Object.keys(movesByPiece)
-        .map((key) => {
-          const [type, from] = key.split("-");
-          const pieceSymbol = this.themeManager.getPieceSymbol({
-            type,
-            color: this.chess.turn() === "w" ? "w" : "b",
-          });
-          const movesStr = movesByPiece[key].join(", ");
-          return `${pieceSymbol} ${from}: ${movesStr}`;
-        })
-        .join("\n");
+    if (result.type === "move") {
+      let promotion = result.promotion;
+      if (promotion) {
+        const { piece } = await inquirer.prompt([
+          {
+            type: "list",
+            name: "piece",
+            message: chalk.bold.cyan("Choose your promotion piece:"),
+            choices: [
+              { name: "♕ Queen", value: "q" },
+              { name: "♖ Rook", value: "r" },
+              { name: "♗ Bishop", value: "b" },
+              { name: "♘ Knight", value: "n" },
+            ],
+          },
+        ]);
+        promotion = piece;
+      }
+
+      const moveObj = {
+        from: result.from,
+        to: result.to,
+        promotion,
+      };
+
+      this.chess.move(moveObj);
+      this.socket.emit("move", { roomCode: this.roomCode, move: moveObj });
+      this.isMyTurn = false;
 
       console.log(
-        boxen(movesList, {
-          padding: 1,
-          margin: 1,
-          borderStyle: "single",
-          borderColor: this.themeManager.getBorderColor(),
-          title: "Legal Moves",
-          titleAlignment: "center",
-        })
+        chalk.green(`\n✓ Move executed: ${result.from} → ${result.to}`)
       );
 
-      return this.promptMove();
-    }
+      this.displayBoard();
 
-    if (moveInput.toLowerCase() === "quit") {
-      const { confirmQuit } = await inquirer.prompt([
-        {
-          type: "confirm",
-          name: "confirmQuit",
-          message: chalk.red("Are you sure you want to quit?"),
-          default: false,
-        },
-      ]);
-
-      if (confirmQuit) {
-        console.log(chalk.red("\n👋 Game abandoned. See you next time!\n"));
-        process.exit(0);
+      if (this.chess.isGameOver()) {
+        this.handleGameOver();
       } else {
-        return this.promptMove();
+        console.log(chalk.gray("\n⏳ Waiting for opponent's move..."));
       }
-    }
-
-    const [from, to] = moveInput.split("-");
-    const move = moves.find((m) => m.from === from && m.to === to);
-
-    let promotion = undefined;
-    if (move.promotion) {
-      console.log(chalk.yellow("\n♟ Pawn promotion!"));
-      const { piece } = await inquirer.prompt([
-        {
-          type: "list",
-          name: "piece",
-          message: chalk.bold.cyan("Choose your promotion piece:"),
-          choices: [
-            { name: "♕ Queen", value: "q" },
-            { name: "♖ Rook", value: "r" },
-            { name: "♗ Bishop", value: "b" },
-            { name: "♘ Knight", value: "n" },
-          ],
-        },
-      ]);
-      promotion = piece;
-    }
-
-    const moveObj = { from, to, promotion };
-    this.chess.move(moveObj);
-    this.socket.emit("move", { roomCode: this.roomCode, move: moveObj });
-    this.isMyTurn = false;
-
-    console.log(chalk.green(`\n✓ Move executed: ${from} → ${to}`));
-
-    this.displayBoard();
-
-    if (this.chess.isGameOver()) {
-      this.handleGameOver();
-    } else {
-      console.log(chalk.gray("\n⏳ Waiting for opponent's move..."));
     }
   }
 
