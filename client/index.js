@@ -210,7 +210,7 @@ class ChessArena {
       return this.start();
     }
 
-    this.connectToServer();
+    await this.connectToServer();
 
     if (onlineAction === "Create a new game") {
       await this.createGame();
@@ -246,87 +246,109 @@ class ChessArena {
   }
 
   connectToServer() {
-    const serverUrl = this.configManager.getServerUrl();
-    this.socket = io(serverUrl, {
-      transports: ["websocket", "polling"],
-    });
+    return new Promise((resolve, reject) => {
+      const serverUrl = this.configManager.getServerUrl();
+      console.log(chalk.gray("🔄 Connecting to server..."));
 
-    this.socket.on("connect", () => {
-      console.log(chalk.green("✓ Connected to server"));
-    });
+      this.socket = io(serverUrl, {
+        transports: ["websocket", "polling"],
+      });
 
-    this.socket.on("gameCreated", (data) => {
-      this.roomCode = data.roomCode;
-      this.playerColor = "white";
-      console.log(chalk.green("\n🎮 Game created successfully!"));
-      console.log(
-        boxen(chalk.bold.yellow(`Room Code: ${data.roomCode}`), {
-          padding: 1,
-          margin: 1,
-          borderStyle: "round",
-          borderColor: this.themeManager.getBorderColor(),
-        })
-      );
-      console.log(chalk.gray("📤 Share this code with your friend"));
-      console.log(chalk.yellow("⏳ Waiting for opponent to join..."));
-    });
-
-    this.socket.on("gameJoined", (data) => {
-      this.roomCode = data.roomCode;
-      this.playerColor = "black";
-      console.log(
-        chalk.green(`\n✅ Successfully joined game: ${data.roomCode}`)
-      );
-      console.log(chalk.cyan("Preparing the board..."));
-    });
-
-    this.socket.on("gameStart", () => {
-      console.log(
-        chalk.green.bold("\n🎯 Opponent connected! Game starting...\n")
-      );
-      setTimeout(() => {
+      const connectionTimeout = setTimeout(() => {
+        this.socket.disconnect();
         console.log(
-          chalk.cyanBright(
-            `You are playing as ${chalk.bold(
-              this.playerColor === "white" ? "WHITE ♔" : "BLACK ♚"
-            )}`
+          chalk.red(
+            "❌ Connection timeout. Please check your internet connection."
           )
         );
-        this.isMyTurn = this.playerColor === "white";
+        reject(new Error("Connection timeout"));
+      }, 10000);
+
+      this.socket.once("connect", () => {
+        clearTimeout(connectionTimeout);
+        console.log(chalk.green("✓ Connected to server\n"));
+        resolve();
+      });
+
+      this.socket.once("connect_error", (error) => {
+        clearTimeout(connectionTimeout);
+        console.log(chalk.red(`❌ Failed to connect: ${error.message}`));
+        reject(error);
+      });
+
+      this.socket.on("gameCreated", (data) => {
+        this.roomCode = data.roomCode;
+        this.playerColor = "white";
+        console.log(chalk.green("\n🎮 Game created successfully!"));
+        console.log(
+          boxen(chalk.bold.yellow(`Room Code: ${data.roomCode}`), {
+            padding: 1,
+            margin: 1,
+            borderStyle: "round",
+            borderColor: this.themeManager.getBorderColor(),
+          })
+        );
+        console.log(chalk.gray("📤 Share this code with your friend"));
+        console.log(chalk.yellow("⏳ Waiting for opponent to join..."));
+      });
+
+      this.socket.on("gameJoined", (data) => {
+        this.roomCode = data.roomCode;
+        this.playerColor = "black";
+        console.log(
+          chalk.green(`\n✅ Successfully joined game: ${data.roomCode}`)
+        );
+        console.log(chalk.cyan("Preparing the board..."));
+      });
+
+      this.socket.on("gameStart", () => {
+        console.log(
+          chalk.green.bold("\n🎯 Opponent connected! Game starting...\n")
+        );
         setTimeout(() => {
-          this.playGame();
-        }, 1500);
-      }, 1000);
-    });
+          console.log(
+            chalk.cyanBright(
+              `You are playing as ${chalk.bold(
+                this.playerColor === "white" ? "WHITE ♔" : "BLACK ♚"
+              )}`
+            )
+          );
+          this.isMyTurn = this.playerColor === "white";
+          setTimeout(() => {
+            this.playGame();
+          }, 1500);
+        }, 1000);
+      });
 
-    this.socket.on("opponentMove", (move) => {
-      this.chess.move(move);
-      this.isMyTurn = true;
+      this.socket.on("opponentMove", (move) => {
+        this.chess.move(move);
+        this.isMyTurn = true;
 
-      console.log(
-        chalk.yellow(`\n⚡ Opponent moved: ${move.from} → ${move.to}`)
-      );
-      setTimeout(() => {
-        this.displayBoard();
+        console.log(
+          chalk.yellow(`\n⚡ Opponent moved: ${move.from} → ${move.to}`)
+        );
+        setTimeout(() => {
+          this.displayBoard();
 
-        if (this.chess.isGameOver()) {
-          this.handleGameOver();
-        } else {
-          this.promptMove();
-        }
-      }, 1000);
-    });
+          if (this.chess.isGameOver()) {
+            this.handleGameOver();
+          } else {
+            this.promptMove();
+          }
+        }, 1000);
+      });
 
-    this.socket.on("opponentDisconnected", () => {
-      console.log(chalk.red.bold("\n📡 Connection Lost!"));
-      console.log(chalk.red("Your opponent has disconnected from the game."));
-      this.askPlayAgain();
-    });
+      this.socket.on("opponentDisconnected", () => {
+        console.log(chalk.red.bold("\n📡 Connection Lost!"));
+        console.log(chalk.red("Your opponent has disconnected from the game."));
+        this.askPlayAgain();
+      });
 
-    this.socket.on("error", (error) => {
-      console.log(chalk.red.bold("\n❌ ERROR"));
-      console.log(chalk.red(`Details: ${error}`));
-      this.askPlayAgain();
+      this.socket.on("error", (error) => {
+        console.log(chalk.red.bold("\n❌ ERROR"));
+        console.log(chalk.red(`Details: ${error}`));
+        this.askPlayAgain();
+      });
     });
   }
 
