@@ -84,7 +84,14 @@ npm run preview        # Preview all themes
 npm run install-stockfish  # Install Stockfish engine
 ```
 
-## Config File Location
+## Data Storage Location
 
-- Linux/Mac: `~/.chess-arena/config.json`
-- Windows: `C:\Users\YourName\.chess-arena\config.json`
+Chess Arena stores all user data in a single directory:
+
+- Linux/Mac: `~/.chess-arena/`
+- Windows: `C:\Users\YourName\.chess-arena\`
+
+This includes:
+
+- `config.json` - Settings and preferences
+- `saved_games/` - Automatically exported PGN files from completed games
