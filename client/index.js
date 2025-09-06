@@ -21,6 +21,7 @@ import BoardRenderer from "./utils/boardRenderer.js";
 import MoveInputHandler from "./utils/moveInputHandler.js";
 import SoundManager from "./utils/soundManager.js";
 import PGNExporter from "./utils/pgnExporter.js";
+import OpeningDetector from "./utils/openingDetector.js";
 
 class ChessArena {
   constructor() {
@@ -33,6 +34,7 @@ class ChessArena {
     this.configManager = new ConfigManager();
     this.themeManager = new ThemeManager();
     this.soundManager = new SoundManager(this.configManager);
+    this.openingDetector = new OpeningDetector();
 
     const savedTheme = this.configManager.getTheme();
     if (savedTheme && savedTheme !== "classic") {
@@ -577,6 +579,11 @@ class ChessArena {
       }
     );
 
+    const opening = this.openingDetector.detectOpening(this.chess);
+    if (opening) {
+      this.openingDetector.displayOpeningInfo(opening);
+    }
+
     this.displayCapturedPieces();
   }
 
@@ -824,6 +831,7 @@ class ChessArena {
       this.roomCode = null;
       this.playerColor = null;
       this.isMyTurn = false;
+      this.openingDetector.reset(); // ADD THIS LINE
       if (this.socket) {
         this.socket.disconnect();
       }

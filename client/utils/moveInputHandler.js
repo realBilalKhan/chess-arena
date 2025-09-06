@@ -7,17 +7,19 @@ class MoveInputHandler {
     this.boardRenderer = boardRenderer;
     this.themeManager = themeManager;
     this.selectionMode = false;
+    this.tipShown = false;
   }
 
   async promptMove(chess, playerColor) {
     const moves = chess.moves({ verbose: true });
 
-    if (!this.selectionMode) {
+    if (!this.selectionMode && !this.tipShown) {
       console.log(
         chalk.gray(
           "\n  💡 Tip: Enter a square (e.g., 'e2') to select a piece and see its legal moves"
         )
       );
+      this.tipShown = true;
     }
 
     const { input } = await inquirer.prompt([

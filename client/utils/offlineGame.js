@@ -7,6 +7,7 @@ import StockfishEngine from "../engines/stockfish.js";
 import BoardRenderer from "./boardRenderer.js";
 import MoveInputHandler from "./moveInputHandler.js";
 import SoundManager from "./soundManager.js";
+import OpeningDetector from "./openingDetector.js";
 
 class OfflineGame {
   constructor(themeManager, configManager, pgnExporter) {
@@ -21,6 +22,7 @@ class OfflineGame {
       themeManager
     );
     this.soundManager = new SoundManager(configManager);
+    this.openingDetector = new OpeningDetector();
     this.playerColor = "white";
     this.isPlayerTurn = true;
     this.moveCount = 0;
@@ -160,6 +162,11 @@ class OfflineGame {
           chalk.yellow.bold("Stockfish 🤖") + ` (${this.stockfish.difficulty})`,
       }
     );
+
+    const opening = this.openingDetector.detectOpening(this.chess);
+    if (opening) {
+      this.openingDetector.displayOpeningInfo(opening);
+    }
 
     if (this.gameStartTime) {
       const duration = Math.floor((Date.now() - this.gameStartTime) / 1000);
