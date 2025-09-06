@@ -28,6 +28,10 @@ class OfflineGame {
     this.moveCount = 0;
     this.gameStartTime = null;
     this.thinking = false;
+
+    this.moveEvaluations = [];
+    this.enableEvaluation = true;
+    this.lastPositionEval = null;
   }
 
   async initialize() {
@@ -104,11 +108,29 @@ class OfflineGame {
       },
     ]);
 
+    const { evaluation } = await inquirer.prompt([
+      {
+        type: "confirm",
+        name: "evaluation",
+        message:
+          "Enable move evaluation? (Shows if moves are excellent, mistakes, blunders)",
+        default: true,
+      },
+    ]);
+
+    this.enableEvaluation = evaluation;
     this.playerColor = color;
     this.isPlayerTurn = color === "white";
 
     this.stockfish.newGame();
     this.gameStartTime = Date.now();
+
+    if (this.enableEvaluation) {
+      console.log(chalk.gray("📊 Analyzing starting position..."));
+      this.lastPositionEval = await this.stockfish.evaluatePosition(
+        this.chess.fen()
+      );
+    }
 
     console.log(chalk.green("\n🎮 Game started!"));
     console.log(
@@ -123,6 +145,10 @@ class OfflineGame {
         })`
       )
     );
+
+    if (this.enableEvaluation) {
+      console.log(chalk.gray("📊 Move evaluation: ENABLED"));
+    }
 
     await new Promise((resolve) => setTimeout(resolve, 2000));
   }
@@ -189,7 +215,26 @@ class OfflineGame {
       );
     }
 
+    this.displayRecentEvaluations();
     this.displayCapturedPieces();
+  }
+
+  displayRecentEvaluations() {
+    if (!this.enableEvaluation || this.moveEvaluations.length === 0) return;
+
+    const recentEvals = this.moveEvaluations.slice(-3);
+
+    console.log(chalk.gray("\n  📊 Move Analysis:"));
+    recentEvals.forEach((evaluation, index) => {
+      const moveNumber =
+        this.moveEvaluations.length - recentEvals.length + index + 1;
+      const color = evaluation.color || chalk.gray;
+      console.log(
+        `    ${moveNumber}. ${evaluation.move} ${evaluation.symbol} ${color(
+          evaluation.description
+        )} ${evaluation.centipawns > 0 ? `(-${evaluation.centipawns}cp)` : ""}`
+      );
+    });
   }
 
   displayCapturedPieces() {
@@ -223,6 +268,37 @@ class OfflineGame {
         );
       }
     }
+  }
+
+  async evaluateMove(move, isPlayerMove = true) {
+    if (!this.enableEvaluation) return null;
+
+    try {
+      const currentEval = await this.stockfish.evaluatePosition(
+        this.chess.fen()
+      );
+
+      if (this.lastPositionEval && currentEval) {
+        const evaluation = this.stockfish.evaluateMoveQuality(
+          this.lastPositionEval,
+          currentEval,
+          isPlayerMove
+        );
+
+        this.moveEvaluations.push({
+          move: move,
+          ...evaluation,
+        });
+
+        this.lastPositionEval = currentEval;
+
+        return evaluation;
+      }
+    } catch (error) {
+      console.error(chalk.red("Error evaluating move:", error));
+    }
+
+    return null;
   }
 
   async playerMove() {
@@ -292,11 +368,33 @@ class OfflineGame {
 
         if (chessMove) {
           this.soundManager.playMoveSound(chessMove, this.chess);
-        }
 
-        console.log(
-          chalk.green(`\n✓ Move executed: ${result.from} → ${result.to}`)
-        );
+          console.log(
+            chalk.green(`\n✓ Move executed: ${result.from} → ${result.to}`)
+          );
+
+          if (this.enableEvaluation) {
+            console.log(chalk.gray("📊 Analyzing move..."));
+            const evaluation = await this.evaluateMove(chessMove.san, true);
+
+            if (evaluation) {
+              console.log(
+                `${evaluation.symbol} ${evaluation.color(
+                  evaluation.description
+                )}` +
+                  (evaluation.centipawns > 0
+                    ? ` (-${evaluation.centipawns}cp)`
+                    : "")
+              );
+
+              if (evaluation.quality === "blunder") {
+                this.soundManager.playSound("blunder");
+              } else if (evaluation.quality === "excellent") {
+                this.soundManager.playSound("excellent");
+              }
+            }
+          }
+        }
       } catch (error) {
         this.soundManager.playIllegalMove();
         console.log(
@@ -331,11 +429,27 @@ class OfflineGame {
 
         if (chessMove) {
           this.soundManager.playMoveSound(chessMove, this.chess);
+
+          console.log(
+            chalk.yellow(`\n⚡ Stockfish moved: ${move.from} → ${move.to}`)
+          );
+
+          if (this.enableEvaluation) {
+            const evaluation = await this.evaluateMove(chessMove.san, false);
+
+            if (evaluation) {
+              console.log(
+                chalk.gray(
+                  `📊 ${evaluation.symbol} ${evaluation.description}` +
+                    (evaluation.centipawns > 0
+                      ? ` (-${evaluation.centipawns}cp)`
+                      : "")
+                )
+              );
+            }
+          }
         }
 
-        console.log(
-          chalk.yellow(`\n⚡ Stockfish moved: ${move.from} → ${move.to}`)
-        );
         await new Promise((resolve) => setTimeout(resolve, 1500));
       } catch (error) {
         console.error(chalk.red("Invalid move from Stockfish:", error));
@@ -367,6 +481,61 @@ class OfflineGame {
         )
       );
     }
+  }
+
+  displayGameSummary() {
+    if (!this.enableEvaluation || this.moveEvaluations.length === 0) return;
+
+    console.log(
+      boxen(
+        chalk.bold.cyan("📊 Game Analysis Summary\n") +
+          this.generateMoveQualityStats(),
+        {
+          padding: 1,
+          margin: 1,
+          borderStyle: "single",
+          borderColor: "cyan",
+        }
+      )
+    );
+  }
+
+  generateMoveQualityStats() {
+    const playerMoves = this.moveEvaluations.filter((_, index) =>
+      this.playerColor === "white" ? index % 2 === 0 : index % 2 === 1
+    );
+
+    const stockfishMoves = this.moveEvaluations.filter((_, index) =>
+      this.playerColor === "white" ? index % 2 === 1 : index % 2 === 0
+    );
+
+    const getStats = (moves) => {
+      const qualities = moves.reduce((acc, move) => {
+        acc[move.quality] = (acc[move.quality] || 0) + 1;
+        return acc;
+      }, {});
+
+      return qualities;
+    };
+
+    const playerStats = getStats(playerMoves);
+    const stockfishStats = getStats(stockfishMoves);
+
+    let summary = chalk.white("Your moves:\n");
+    Object.entries(playerStats).forEach(([quality, count]) => {
+      summary += `  ${this.stockfish.getQualitySymbol(
+        quality
+      )} ${quality}: ${count}\n`;
+    });
+
+    summary += chalk.gray("\nStockfish moves:\n");
+    Object.entries(stockfishStats).forEach(([quality, count]) => {
+      summary += `  ${this.stockfish.getQualitySymbol(
+        quality
+      )} ${quality}: ${count}\n`;
+    });
+
+    return summary;
   }
 
   handleGameOver() {
@@ -449,6 +618,8 @@ class OfflineGame {
         titleAlignment: "center",
       })
     );
+
+    this.displayGameSummary();
 
     const gameInfo = {
       event: "Chess Arena vs Stockfish",

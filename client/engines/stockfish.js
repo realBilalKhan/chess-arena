@@ -8,7 +8,9 @@ class StockfishEngine {
     this.currentPosition = "startpos";
     this.moveHistory = [];
     this.onMoveCallback = null;
+    this.onEvaluationCallback = null;
     this.difficulty = "medium";
+    this.evaluationDepth = 12;
 
     this.difficultySettings = {
       easy: {
@@ -80,6 +82,10 @@ class StockfishEngine {
           if (output.includes("bestmove")) {
             this.handleBestMove(output);
           }
+
+          if (output.includes("info depth") && this.onEvaluationCallback) {
+            this.handleEvaluation(output);
+          }
         });
 
         this.engine.stderr.on("data", (data) => {
@@ -146,6 +152,42 @@ class StockfishEngine {
     }
   }
 
+  handleEvaluation(output) {
+    const lines = output.split("\n");
+    let bestEvaluation = null;
+    let bestDepth = 0;
+
+    for (const line of lines) {
+      if (line.includes("info depth")) {
+        const depthMatch = line.match(/depth (\d+)/);
+        const scoreMatch = line.match(/score (cp|mate) (-?\d+)/);
+
+        if (depthMatch && scoreMatch) {
+          const depth = parseInt(depthMatch[1]);
+          const scoreType = scoreMatch[1];
+          const scoreValue = parseInt(scoreMatch[2]);
+
+          if (depth >= bestDepth) {
+            bestDepth = depth;
+            bestEvaluation = {
+              type: scoreType,
+              value: scoreValue,
+              depth: depth,
+            };
+          }
+        }
+      }
+    }
+
+    if (
+      bestEvaluation &&
+      this.onEvaluationCallback &&
+      bestDepth >= this.evaluationDepth
+    ) {
+      this.onEvaluationCallback(bestEvaluation);
+    }
+  }
+
   parseUCIMove(uciMove) {
     const from = uciMove.substring(0, 2);
     const to = uciMove.substring(2, 4);
@@ -165,6 +207,92 @@ class StockfishEngine {
         `go depth ${settings.depth} movetime ${settings.moveTime}`
       );
     });
+  }
+
+  async evaluatePosition(fen) {
+    return new Promise((resolve) => {
+      this.onEvaluationCallback = resolve;
+
+      this.sendCommand(`position fen ${fen}`);
+      this.sendCommand(`go depth ${this.evaluationDepth}`);
+
+      setTimeout(() => {
+        this.onEvaluationCallback = null;
+        resolve(null);
+      }, 3000);
+    });
+  }
+
+  evaluateMoveQuality(beforeEval, afterEval, isPlayerMove = true) {
+    if (!beforeEval || !afterEval) {
+      return {
+        quality: "unknown",
+        description: "Unable to evaluate",
+        centipawns: 0,
+      };
+    }
+
+    let beforeCp = this.evaluationToCentipawns(beforeEval, isPlayerMove);
+    let afterCp = this.evaluationToCentipawns(afterEval, !isPlayerMove);
+
+    const difference = afterCp - beforeCp;
+
+    let quality, description, color;
+
+    if (difference >= 100) {
+      quality = "excellent";
+      description = "Excellent move!";
+      color = chalk.green.bold;
+    } else if (difference >= 50) {
+      quality = "good";
+      description = "Good move";
+      color = chalk.green;
+    } else if (difference >= -50) {
+      quality = "ok";
+      description = "Decent move";
+      color = chalk.cyan;
+    } else if (difference >= -100) {
+      quality = "inaccuracy";
+      description = "Inaccuracy";
+      color = chalk.yellow;
+    } else if (difference >= -300) {
+      quality = "mistake";
+      description = "Mistake";
+      color = chalk.magenta;
+    } else {
+      quality = "blunder";
+      description = "Blunder!";
+      color = chalk.red.bold;
+    }
+
+    return {
+      quality,
+      description,
+      centipawns: Math.abs(difference),
+      color,
+      symbol: this.getQualitySymbol(quality),
+    };
+  }
+
+  evaluationToCentipawns(evaluation, fromWhitePerspective = true) {
+    if (evaluation.type === "mate") {
+      const mateValue = evaluation.value > 0 ? 10000 : -10000;
+      return fromWhitePerspective ? mateValue : -mateValue;
+    } else {
+      return fromWhitePerspective ? evaluation.value : -evaluation.value;
+    }
+  }
+
+  getQualitySymbol(quality) {
+    const symbols = {
+      excellent: "‼️",
+      good: "❗",
+      ok: "✓",
+      inaccuracy: "⁉️",
+      mistake: "❓",
+      blunder: "⁇",
+    };
+    return symbols[quality] || "?";
   }
 
   newGame() {
