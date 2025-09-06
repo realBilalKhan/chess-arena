@@ -10,6 +10,8 @@ export function parseCliArgs() {
     serverUrl: null,
     resetConfig: false,
     showConfig: false,
+    sound: null,
+    muteSound: false,
   };
 
   for (let i = 0; i < args.length; i++) {
@@ -54,6 +56,20 @@ export function parseCliArgs() {
       case "-c":
         parsedArgs.showConfig = true;
         break;
+
+      case "--sound":
+        if (i + 1 < args.length) {
+          const value = args[++i].toLowerCase();
+          if (value === "on" || value === "off") {
+            parsedArgs.sound = value;
+          }
+        }
+        break;
+
+      case "--mute":
+      case "-m":
+        parsedArgs.muteSound = true;
+        break;
     }
   }
 
@@ -71,6 +87,10 @@ Options:
   -l, --list-themes      List all available themes
   -p, --preview-themes   Preview all available themes
   -s, --server <url>     Set custom server URL
+  -c, --show-config      Show current configuration
+  -r, --reset-config     Reset configuration to defaults
+  --sound <on|off>       Enable or disable sound effects
+  -m, --mute            Start with sound muted
   -h, --help            Show this help message
 
 Available Themes:
@@ -82,7 +102,8 @@ ${Object.entries(THEMES)
 
 Examples:
   node chess-arena.js --theme ocean
-  node chess-arena.js -t neon
+  node chess-arena.js -t neon --mute
+  node chess-arena.js --sound off
   node chess-arena.js --preview-themes
   node chess-arena.js --list-themes
 `);

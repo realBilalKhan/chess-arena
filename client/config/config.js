@@ -2,9 +2,10 @@ import { PersistenceManager } from "../utils/persistence.js";
 
 export const DEFAULT_CONFIG = {
   theme: "classic",
-  serverUrl: "http://bilalkhan.hackclub.app:3456",
+  serverUrl: "http://localhost:3000",
   showPreview: true,
   autoConnect: true,
+  soundEnabled: true,
 };
 
 export class ConfigManager {
@@ -29,6 +30,15 @@ export class ConfigManager {
 
   getServerUrl() {
     return this.config.serverUrl;
+  }
+
+  setSoundEnabled(enabled) {
+    this.config.soundEnabled = enabled;
+    this.persistenceManager.saveUserConfig(this.config);
+  }
+
+  getSoundEnabled() {
+    return this.config.soundEnabled ?? DEFAULT_CONFIG.soundEnabled;
   }
 
   getConfig() {

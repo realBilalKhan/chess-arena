@@ -108,7 +108,7 @@ class MoveInputHandler {
 
     if (lowerInput === "help") {
       this.showHelp(moves, chess);
-      return { command: "continue" };
+      return { command: "continue", skipRedraw: true };
     }
 
     if (lowerInput === "hint") {
@@ -230,7 +230,6 @@ class MoveInputHandler {
     });
 
     const helpLines = [];
-    helpLines.push(chalk.bold.cyan("Available Moves:\n"));
 
     Object.keys(movesByPiece).forEach((key) => {
       const { piece, moves: pieceMoves } = movesByPiece[key];
@@ -259,7 +258,7 @@ class MoveInputHandler {
         margin: 1,
         borderStyle: "single",
         borderColor: this.themeManager.getBorderColor(),
-        title: "Help",
+        title: "Legal Moves",
         titleAlignment: "center",
       })
     );

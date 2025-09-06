@@ -6,17 +6,21 @@ import boxen from "boxen";
 import StockfishEngine from "../engines/stockfish.js";
 import BoardRenderer from "./boardRenderer.js";
 import MoveInputHandler from "./moveInputHandler.js";
+import SoundManager from "./soundManager.js";
 
 class OfflineGame {
-  constructor(themeManager) {
+  constructor(themeManager, configManager, pgnExporter) {
     this.chess = new Chess();
     this.themeManager = themeManager;
+    this.configManager = configManager;
+    this.pgnExporter = pgnExporter;
     this.stockfish = new StockfishEngine();
     this.boardRenderer = new BoardRenderer(themeManager);
     this.moveInputHandler = new MoveInputHandler(
       this.boardRenderer,
       themeManager
     );
+    this.soundManager = new SoundManager(configManager);
     this.playerColor = "white";
     this.isPlayerTurn = true;
     this.moveCount = 0;
@@ -124,6 +128,8 @@ class OfflineGame {
   async playGame() {
     await this.setupGame();
 
+    this.soundManager.playGameStart();
+
     while (!this.chess.isGameOver()) {
       this.displayBoard();
 
@@ -220,7 +226,9 @@ class OfflineGame {
 
     switch (result.command) {
       case "continue":
-        this.displayBoard();
+        if (!result.skipRedraw) {
+          this.displayBoard();
+        }
         return this.playerMove();
 
       case "clear":
@@ -268,15 +276,28 @@ class OfflineGame {
         promotion = piece;
       }
 
-      this.chess.move({
-        from: result.from,
-        to: result.to,
-        promotion,
-      });
+      try {
+        const chessMove = this.chess.move({
+          from: result.from,
+          to: result.to,
+          promotion,
+        });
 
-      console.log(
-        chalk.green(`\n✓ Move executed: ${result.from} → ${result.to}`)
-      );
+        if (chessMove) {
+          this.soundManager.playMoveSound(chessMove, this.chess);
+        }
+
+        console.log(
+          chalk.green(`\n✓ Move executed: ${result.from} → ${result.to}`)
+        );
+      } catch (error) {
+        this.soundManager.playIllegalMove();
+        console.log(
+          chalk.red(`\n❌ Invalid move: ${result.from} → ${result.to}`)
+        );
+        console.log(chalk.yellow("Please try again."));
+        return this.playerMove();
+      }
     }
   }
 
@@ -299,7 +320,12 @@ class OfflineGame {
 
     if (move) {
       try {
-        this.chess.move(move);
+        const chessMove = this.chess.move(move);
+
+        if (chessMove) {
+          this.soundManager.playMoveSound(chessMove, this.chess);
+        }
+
         console.log(
           chalk.yellow(`\n⚡ Stockfish moved: ${move.from} → ${move.to}`)
         );
@@ -345,10 +371,12 @@ class OfflineGame {
     let title = "Game Over";
     let message = "";
     let borderColor = this.themeManager.getBorderColor();
+    let gameResult = "*";
 
     if (this.chess.isCheckmate()) {
       const winner = this.chess.turn() === "w" ? "Black" : "White";
       const isPlayerWinner = winner.toLowerCase() === this.playerColor;
+      gameResult = winner === "White" ? "1-0" : "0-1";
 
       if (isPlayerWinner) {
         title = "🏆 Victory!";
@@ -367,14 +395,29 @@ class OfflineGame {
           chalk.gray("♚ ♛ ♜ ♝ ♞ ♟"),
         ].join("\n");
       }
-    } else if (this.chess.isDraw()) {
-      title = "🤝 Draw";
+    } else if (
+      this.chess.isDraw() ||
+      this.chess.isStalemate() ||
+      this.chess.isThreefoldRepetition() ||
+      this.chess.isInsufficientMaterial()
+    ) {
+      gameResult = "1/2-1/2";
+      this.soundManager.playSound("draw");
+
+      if (this.chess.isStalemate()) {
+        title = "⚖️ Stalemate";
+        message = chalk.cyan("No legal moves - game is a draw!");
+      } else if (this.chess.isThreefoldRepetition()) {
+        title = "🔄 Threefold Repetition";
+        message = chalk.cyan("Position repeated 3 times - draw!");
+      } else if (this.chess.isInsufficientMaterial()) {
+        title = "⚠️ Insufficient Material";
+        message = chalk.cyan("Not enough pieces to checkmate - draw!");
+      } else {
+        title = "🤝 Draw";
+        message = chalk.cyan("The game ended in a draw!");
+      }
       borderColor = "cyan";
-      message = chalk.cyan("The game ended in a draw!");
-    } else if (this.chess.isStalemate()) {
-      title = "⚖️ Stalemate";
-      borderColor = "cyan";
-      message = chalk.cyan("No legal moves - game is a draw!");
     }
 
     message +=
@@ -399,6 +442,19 @@ class OfflineGame {
         titleAlignment: "center",
       })
     );
+
+    const gameInfo = {
+      event: "Chess Arena vs Stockfish",
+      white: this.playerColor === "white" ? "Player" : "Stockfish",
+      black: this.playerColor === "black" ? "Player" : "Stockfish",
+      result: gameResult,
+      isOffline: true,
+      mode: "Computer",
+      timeControl: "-",
+    };
+
+    const exportResult = this.pgnExporter.exportGame(this.chess, gameInfo);
+    this.pgnExporter.displayGameInfo(exportResult);
 
     this.stockfish.quit();
   }

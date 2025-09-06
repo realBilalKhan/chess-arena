@@ -41,17 +41,18 @@ stockfish --version
 
 ## Command Line Options
 
-| Command                  | Description                                  |
-| ------------------------ | -------------------------------------------- |
-| `chess-arena`            | Start the game with default settings         |
-| `chess-arena -l`         | List all available themes with descriptions  |
-| `chess-arena -p`         | Preview all themes with sample boards        |
-| `chess-arena -t <theme>` | Set board theme (see available themes below) |
-| `chess-arena -s <url>`   | Set custom server URL                        |
-| `chess-arena -h`         | Show comprehensive help message              |
-| `chess-arena -c`         | Show current saved configuration             |
-| `chess-arena -r`         | Reset all settings to defaults               |
-| `install-stockfish`      | Install Stockfish for offline play           |
+| Command                         | Description                                  |
+| ------------------------------- | -------------------------------------------- |
+| `chess-arena`                   | Start the game with default settings         |
+| `chess-arena -l`                | List all available themes with descriptions  |
+| `chess-arena -p`                | Preview all themes with sample boards        |
+| `chess-arena -t <theme>`        | Set board theme (see available themes below) |
+| `chess-arena -s <url>`          | Set custom server URL                        |
+| `chess-arena -h`                | Show comprehensive help message              |
+| `chess-arena -c`                | Show current saved configuration             |
+| `chess-arena -r`                | Reset all settings to defaults               |
+| `chess-arena --sound <on\|off>` | Enable or disable sound effects              |
+| `install-stockfish`             | Install Stockfish for offline play           |
 
 ## Creating Custom Themes
 

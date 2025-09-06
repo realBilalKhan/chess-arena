@@ -19,6 +19,8 @@ import { selectThemeInteractively } from "./utils/themeSelector.js";
 import OfflineGame from "./utils/offlineGame.js";
 import BoardRenderer from "./utils/boardRenderer.js";
 import MoveInputHandler from "./utils/moveInputHandler.js";
+import SoundManager from "./utils/soundManager.js";
+import PGNExporter from "./utils/pgnExporter.js";
 
 class ChessArena {
   constructor() {
@@ -27,8 +29,10 @@ class ChessArena {
     this.roomCode = null;
     this.playerColor = null;
     this.isMyTurn = false;
+    this.pgnExporter = new PGNExporter();
     this.configManager = new ConfigManager();
     this.themeManager = new ThemeManager();
+    this.soundManager = new SoundManager(this.configManager);
 
     const savedTheme = this.configManager.getTheme();
     if (savedTheme && savedTheme !== "classic") {
@@ -92,6 +96,18 @@ class ChessArena {
         chalk.green(`🌐 Server URL permanently set to: ${args.serverUrl}`)
       );
     }
+
+    if (args.sound) {
+      this.soundManager.setEnabled(args.sound === "on");
+      console.log(
+        chalk.green(`🔊 Sound ${args.sound === "on" ? "enabled" : "disabled"}`)
+      );
+    }
+
+    if (args.muteSound) {
+      this.soundManager.setEnabled(false);
+      console.log(chalk.gray("🔇 Sound muted"));
+    }
   }
 
   showCurrentConfig() {
@@ -102,6 +118,11 @@ class ChessArena {
 
     console.log(`${chalk.bold("Theme:")} ${chalk.cyan(config.theme)}`);
     console.log(`${chalk.bold("Server URL:")} ${chalk.cyan(config.serverUrl)}`);
+    console.log(
+      `${chalk.bold("Sound:")} ${chalk.cyan(
+        config.soundEnabled ? "Enabled" : "Disabled"
+      )}`
+    );
     console.log(
       `${chalk.bold("Config File:")} ${chalk.gray(
         this.configManager.getConfigPath()
@@ -175,10 +196,21 @@ class ChessArena {
           "🌐 Play Online with a Friend",
           "🤖 Play Offline vs Stockfish",
           "🎨 Change theme",
+          `🔊 Sound (${this.soundManager.isEnabled() ? "ON" : "OFF"})`,
+          "📁 Manage saved games",
           "Exit",
         ],
       },
     ]);
+
+    if (action.startsWith("🔊 Sound")) {
+      const enabled = this.soundManager.toggle();
+      console.log(
+        chalk.green(`\n🔊 Sound ${enabled ? "enabled" : "disabled"}`)
+      );
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      return this.start();
+    }
 
     if (action === "Exit") {
       process.exit(0);
@@ -196,6 +228,11 @@ class ChessArena {
         );
         await new Promise((resolve) => setTimeout(resolve, 1500));
       }
+      return this.start();
+    }
+
+    if (action === "📁 Manage saved games") {
+      await this.manageSavedGames();
       return this.start();
     }
 
@@ -226,8 +263,148 @@ class ChessArena {
     }
   }
 
+  async manageSavedGames() {
+    while (true) {
+      const games = this.pgnExporter.listSavedGames();
+
+      if (games.length === 0) {
+        console.log(chalk.yellow("\n📂 No saved games found."));
+        console.log(
+          chalk.gray("Games are automatically saved when you finish playing.")
+        );
+
+        await inquirer.prompt([
+          {
+            type: "input",
+            name: "continue",
+            message: "Press Enter to continue...",
+          },
+        ]);
+        return;
+      }
+
+      const gameChoices = games.map((game) => ({
+        name: `${game.filename} (${game.created.toLocaleDateString()})`,
+        value: game.filename,
+      }));
+
+      gameChoices.push({ name: "← Back to main menu", value: "back" });
+
+      const { selectedGame } = await inquirer.prompt([
+        {
+          type: "list",
+          name: "selectedGame",
+          message: `📁 Saved Games (${games.length} total):`,
+          choices: gameChoices,
+          pageSize: 10,
+        },
+      ]);
+
+      if (selectedGame === "back") {
+        return;
+      }
+
+      const continueManaging = await this.handleGameAction(selectedGame);
+      if (!continueManaging) {
+        return;
+      }
+    }
+  }
+
+  async handleGameAction(selectedGame) {
+    const { gameAction } = await inquirer.prompt([
+      {
+        type: "list",
+        name: "gameAction",
+        message: `What would you like to do with ${selectedGame}?`,
+        choices: [
+          "👀 View game content",
+          "📋 Copy to clipboard",
+          "🗑️ Delete game",
+          "← Back to games list",
+        ],
+      },
+    ]);
+
+    switch (gameAction) {
+      case "👀 View game content":
+        const loadResult = this.pgnExporter.loadGame(selectedGame);
+        if (loadResult.success) {
+          console.log(chalk.cyan(`\n📋 Content of ${selectedGame}:`));
+          console.log(chalk.gray("─".repeat(60)));
+          console.log(loadResult.content);
+          console.log(chalk.gray("─".repeat(60)));
+        } else {
+          console.log(chalk.red(`❌ Error loading game: ${loadResult.error}`));
+        }
+
+        await inquirer.prompt([
+          {
+            type: "input",
+            name: "continue",
+            message: "Press Enter to continue...",
+          },
+        ]);
+        return true;
+
+      case "📋 Copy to clipboard":
+        const copyResult = this.pgnExporter.loadGame(selectedGame);
+        if (copyResult.success) {
+          console.log(chalk.cyan("\n📋 Game content (copy this):"));
+          console.log(chalk.gray("─".repeat(60)));
+          console.log(copyResult.content);
+          console.log(chalk.gray("─".repeat(60)));
+        } else {
+          console.log(chalk.red(`❌ Error loading game: ${copyResult.error}`));
+        }
+
+        await inquirer.prompt([
+          {
+            type: "input",
+            name: "continue",
+            message: "Press Enter to continue...",
+          },
+        ]);
+        return true;
+
+      case "🗑️ Delete game":
+        const { confirmDelete } = await inquirer.prompt([
+          {
+            type: "confirm",
+            name: "confirmDelete",
+            message: chalk.red(
+              `Are you sure you want to delete ${selectedGame}?`
+            ),
+            default: false,
+          },
+        ]);
+
+        if (confirmDelete) {
+          const deleteResult = this.pgnExporter.deleteGame(selectedGame);
+          if (deleteResult.success) {
+            console.log(chalk.green(`✓ Deleted ${selectedGame}`));
+          } else {
+            console.log(
+              chalk.red(`❌ Error deleting game: ${deleteResult.error}`)
+            );
+          }
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+        }
+        return true;
+
+      case "← Back to games list":
+        return true;
+      default:
+        return true;
+    }
+  }
+
   async startOfflineGame() {
-    const offlineGame = new OfflineGame(this.themeManager);
+    const offlineGame = new OfflineGame(
+      this.themeManager,
+      this.configManager,
+      this.pgnExporter
+    );
 
     const initialized = await offlineGame.initialize();
     if (!initialized) {
@@ -328,12 +505,18 @@ class ChessArena {
       });
 
       this.socket.on("opponentMove", (move) => {
-        this.chess.move(move);
+        const chessMove = this.chess.move(move);
+
+        if (chessMove) {
+          this.soundManager.playMoveSound(chessMove, this.chess);
+        }
+
         this.isMyTurn = true;
 
         console.log(
           chalk.yellow(`\n⚡ Opponent moved: ${move.from} → ${move.to}`)
         );
+
         setTimeout(() => {
           this.displayBoard();
 
@@ -431,6 +614,7 @@ class ChessArena {
   }
 
   async playGame() {
+    this.soundManager.playGameStart();
     this.displayBoard();
 
     if (this.isMyTurn) {
@@ -448,7 +632,9 @@ class ChessArena {
 
     switch (result.command) {
       case "continue":
-        this.displayBoard();
+        if (!result.skipRedraw) {
+          this.displayBoard();
+        }
         return this.promptMove();
 
       case "clear":
@@ -501,20 +687,34 @@ class ChessArena {
         promotion,
       };
 
-      this.chess.move(moveObj);
-      this.socket.emit("move", { roomCode: this.roomCode, move: moveObj });
-      this.isMyTurn = false;
+      try {
+        const move = this.chess.move(moveObj);
 
-      console.log(
-        chalk.green(`\n✓ Move executed: ${result.from} → ${result.to}`)
-      );
+        if (move) {
+          this.soundManager.playMoveSound(move, this.chess);
 
-      this.displayBoard();
+          this.socket.emit("move", { roomCode: this.roomCode, move: moveObj });
+          this.isMyTurn = false;
 
-      if (this.chess.isGameOver()) {
-        this.handleGameOver();
-      } else {
-        console.log(chalk.gray("\n⏳ Waiting for opponent's move..."));
+          console.log(
+            chalk.green(`\n✓ Move executed: ${result.from} → ${result.to}`)
+          );
+
+          this.displayBoard();
+
+          if (this.chess.isGameOver()) {
+            this.handleGameOver();
+          } else {
+            console.log(chalk.gray("\n⏳ Waiting for opponent's move..."));
+          }
+        }
+      } catch (error) {
+        this.soundManager.playIllegalMove();
+        console.log(
+          chalk.red(`\n❌ Invalid move: ${result.from} → ${result.to}`)
+        );
+        console.log(chalk.yellow("Please try again."));
+        return this.promptMove();
       }
     }
   }
@@ -526,10 +726,12 @@ class ChessArena {
     let title = "Game Over";
     let message = "";
     let borderColor = this.themeManager.getBorderColor();
+    let gameResult = "*";
 
     if (this.chess.isCheckmate()) {
       const winner = this.chess.turn() === "w" ? "Black" : "White";
       const isWinner = winner.toLowerCase() === this.playerColor;
+      gameResult = winner === "White" ? "1-0" : "0-1";
 
       if (isWinner) {
         title = "🏆 Victory!";
@@ -548,30 +750,29 @@ class ChessArena {
           chalk.gray("♚ ♛ ♜ ♝ ♞ ♟"),
         ].join("\n");
       }
-    } else if (this.chess.isDraw()) {
-      title = "🤝 Draw";
+    } else if (
+      this.chess.isDraw() ||
+      this.chess.isStalemate() ||
+      this.chess.isThreefoldRepetition() ||
+      this.chess.isInsufficientMaterial()
+    ) {
+      gameResult = "1/2-1/2";
+      this.soundManager.playSound("draw");
+
+      if (this.chess.isStalemate()) {
+        title = "⚖️ Stalemate";
+        message = chalk.cyan("No legal moves - game is a draw!");
+      } else if (this.chess.isThreefoldRepetition()) {
+        title = "🔄 Threefold Repetition";
+        message = chalk.cyan("Position repeated 3 times - draw!");
+      } else if (this.chess.isInsufficientMaterial()) {
+        title = "⚠️ Insufficient Material";
+        message = chalk.cyan("Not enough pieces to checkmate - draw!");
+      } else {
+        title = "🤝 Draw";
+        message = chalk.cyan("The game ended in a draw!");
+      }
       borderColor = "cyan";
-      message = [
-        chalk.cyan("The game ended in a draw!"),
-        "",
-        chalk.white("Neither player wins"),
-      ].join("\n");
-    } else if (this.chess.isStalemate()) {
-      title = "⚖️ Stalemate";
-      borderColor = "cyan";
-      message = [
-        chalk.cyan("No legal moves - game is a draw!"),
-        "",
-        chalk.white("An honorable end"),
-      ].join("\n");
-    } else if (this.chess.isThreefoldRepetition()) {
-      title = "🔄 Threefold Repetition";
-      borderColor = "cyan";
-      message = chalk.cyan("Position repeated 3 times - draw!");
-    } else if (this.chess.isInsufficientMaterial()) {
-      title = "⚠️ Insufficient Material";
-      borderColor = "cyan";
-      message = chalk.cyan("Not enough pieces to checkmate - draw!");
     }
 
     message +=
@@ -592,6 +793,18 @@ class ChessArena {
         titleAlignment: "center",
       })
     );
+
+    const gameInfo = {
+      event: "Chess Arena Online Game",
+      white: this.playerColor === "white" ? "Player" : "Opponent",
+      black: this.playerColor === "black" ? "Player" : "Opponent",
+      result: gameResult,
+      isOffline: false,
+      mode: "Online",
+    };
+
+    const exportResult = this.pgnExporter.exportGame(this.chess, gameInfo);
+    this.pgnExporter.displayGameInfo(exportResult);
 
     this.askPlayAgain();
   }
