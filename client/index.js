@@ -9,12 +9,6 @@ import clear from "clear";
 import boxen from "boxen";
 import { ThemeManager } from "./themes/index.js";
 import { ConfigManager } from "./config/config.js";
-import {
-  parseCliArgs,
-  showHelp,
-  listThemes,
-  validateTheme,
-} from "./utils/cliArgs.js";
 import { selectThemeInteractively } from "./utils/themeSelector.js";
 import OfflineGame from "./utils/offlineGame.js";
 import BoardRenderer from "./utils/boardRenderer.js";
@@ -22,6 +16,8 @@ import MoveInputHandler from "./utils/moveInputHandler.js";
 import SoundManager from "./utils/soundManager.js";
 import PGNExporter from "./utils/pgnExporter.js";
 import OpeningDetector from "./utils/openingDetector.js";
+import { CLIHandler } from "./utils/cliHandler.js";
+import { GameManager } from "./utils/gameManager.js";
 
 class ChessArena {
   constructor() {
@@ -41,132 +37,20 @@ class ChessArena {
       this.themeManager.setTheme(savedTheme);
     }
 
-    this.handleCliArgs();
+    this.cliHandler = new CLIHandler(
+      this.configManager,
+      this.themeManager,
+      this.soundManager
+    );
+    this.cliHandler.handleCliArgs();
+
+    this.gameManager = new GameManager(this.pgnExporter);
+
     this.boardRenderer = new BoardRenderer(this.themeManager);
     this.moveInputHandler = new MoveInputHandler(
       this.boardRenderer,
       this.themeManager
     );
-  }
-
-  handleCliArgs() {
-    const args = parseCliArgs();
-
-    if (args.help) {
-      showHelp();
-      process.exit(0);
-    }
-
-    if (args.showConfig) {
-      this.showCurrentConfig();
-      process.exit(0);
-    }
-
-    if (args.resetConfig) {
-      this.resetConfig();
-      process.exit(0);
-    }
-
-    if (args.listThemes) {
-      listThemes();
-      process.exit(0);
-    }
-
-    if (args.previewThemes) {
-      this.previewAllThemes();
-      process.exit(0);
-    }
-
-    if (args.theme) {
-      if (!validateTheme(args.theme)) {
-        process.exit(1);
-      }
-      this.themeManager.setTheme(args.theme);
-      this.configManager.setTheme(args.theme);
-      console.log(
-        chalk.green(
-          `🎨 Theme permanently set to: ${
-            this.themeManager.getCurrentTheme().name
-          }`
-        )
-      );
-    }
-
-    if (args.serverUrl) {
-      this.configManager.setServerUrl(args.serverUrl);
-      console.log(
-        chalk.green(`🌐 Server URL permanently set to: ${args.serverUrl}`)
-      );
-    }
-
-    if (args.sound) {
-      this.soundManager.setEnabled(args.sound === "on");
-      console.log(
-        chalk.green(`🔊 Sound ${args.sound === "on" ? "enabled" : "disabled"}`)
-      );
-    }
-
-    if (args.muteSound) {
-      this.soundManager.setEnabled(false);
-      console.log(chalk.gray("🔇 Sound muted"));
-    }
-  }
-
-  showCurrentConfig() {
-    const config = this.configManager.getConfig();
-    const stats = this.configManager.getConfigStats();
-
-    console.log(chalk.yellow.bold("\n🔧 Current Configuration\n"));
-
-    console.log(`${chalk.bold("Theme:")} ${chalk.cyan(config.theme)}`);
-    console.log(`${chalk.bold("Server URL:")} ${chalk.cyan(config.serverUrl)}`);
-    console.log(
-      `${chalk.bold("Sound:")} ${chalk.cyan(
-        config.soundEnabled ? "Enabled" : "Disabled"
-      )}`
-    );
-    console.log(
-      `${chalk.bold("Config File:")} ${chalk.gray(
-        this.configManager.getConfigPath()
-      )}`
-    );
-
-    if (stats.exists) {
-      console.log(
-        `${chalk.bold("Last Updated:")} ${chalk.gray(
-          stats.lastUpdated || "Unknown"
-        )}`
-      );
-    } else {
-      console.log(chalk.gray("Using default settings (no config file found)"));
-    }
-
-    console.log(`\n${chalk.gray("Use --reset-config to restore defaults")}`);
-  }
-
-  resetConfig() {
-    console.log(chalk.yellow("🔄 Resetting configuration to defaults..."));
-
-    const success = this.configManager.resetToDefaults();
-
-    if (success) {
-      console.log(chalk.green("✓ Configuration reset successfully!"));
-      console.log(chalk.gray("Theme: classic"));
-      console.log(chalk.gray("Server: http://bilalkhan.hackclub.app:3456"));
-    } else {
-      console.log(chalk.red("❌ Failed to reset configuration"));
-    }
-  }
-
-  previewAllThemes() {
-    const themeNames = this.themeManager.getThemeNames();
-    console.log(chalk.yellow.bold("🎨 All Theme Previews\n"));
-
-    themeNames.forEach((themeName) => {
-      this.themeManager.setTheme(themeName);
-      this.themeManager.previewTheme();
-      console.log("\n" + "─".repeat(50) + "\n");
-    });
   }
 
   async start() {
@@ -234,7 +118,7 @@ class ChessArena {
     }
 
     if (action === "📁 Manage saved games") {
-      await this.manageSavedGames();
+      await this.gameManager.manageSavedGames();
       return this.start();
     }
 
@@ -262,142 +146,6 @@ class ChessArena {
       await this.createGame();
     } else {
       await this.joinGame();
-    }
-  }
-
-  async manageSavedGames() {
-    while (true) {
-      const games = this.pgnExporter.listSavedGames();
-
-      if (games.length === 0) {
-        console.log(chalk.yellow("\n📂 No saved games found."));
-        console.log(
-          chalk.gray("Games are automatically saved when you finish playing.")
-        );
-
-        await inquirer.prompt([
-          {
-            type: "input",
-            name: "continue",
-            message: "Press Enter to continue...",
-          },
-        ]);
-        return;
-      }
-
-      const gameChoices = games.map((game) => ({
-        name: `${game.filename} (${game.created.toLocaleDateString()})`,
-        value: game.filename,
-      }));
-
-      gameChoices.push({ name: "← Back to main menu", value: "back" });
-
-      const { selectedGame } = await inquirer.prompt([
-        {
-          type: "list",
-          name: "selectedGame",
-          message: `📁 Saved Games (${games.length} total):`,
-          choices: gameChoices,
-          pageSize: 10,
-        },
-      ]);
-
-      if (selectedGame === "back") {
-        return;
-      }
-
-      const continueManaging = await this.handleGameAction(selectedGame);
-      if (!continueManaging) {
-        return;
-      }
-    }
-  }
-
-  async handleGameAction(selectedGame) {
-    const { gameAction } = await inquirer.prompt([
-      {
-        type: "list",
-        name: "gameAction",
-        message: `What would you like to do with ${selectedGame}?`,
-        choices: [
-          "👀 View game content",
-          "📋 Copy to clipboard",
-          "🗑️ Delete game",
-          "← Back to games list",
-        ],
-      },
-    ]);
-
-    switch (gameAction) {
-      case "👀 View game content":
-        const loadResult = this.pgnExporter.loadGame(selectedGame);
-        if (loadResult.success) {
-          console.log(chalk.cyan(`\n📋 Content of ${selectedGame}:`));
-          console.log(chalk.gray("─".repeat(60)));
-          console.log(loadResult.content);
-          console.log(chalk.gray("─".repeat(60)));
-        } else {
-          console.log(chalk.red(`❌ Error loading game: ${loadResult.error}`));
-        }
-
-        await inquirer.prompt([
-          {
-            type: "input",
-            name: "continue",
-            message: "Press Enter to continue...",
-          },
-        ]);
-        return true;
-
-      case "📋 Copy to clipboard":
-        const copyResult = this.pgnExporter.loadGame(selectedGame);
-        if (copyResult.success) {
-          console.log(chalk.cyan("\n📋 Game content (copy this):"));
-          console.log(chalk.gray("─".repeat(60)));
-          console.log(copyResult.content);
-          console.log(chalk.gray("─".repeat(60)));
-        } else {
-          console.log(chalk.red(`❌ Error loading game: ${copyResult.error}`));
-        }
-
-        await inquirer.prompt([
-          {
-            type: "input",
-            name: "continue",
-            message: "Press Enter to continue...",
-          },
-        ]);
-        return true;
-
-      case "🗑️ Delete game":
-        const { confirmDelete } = await inquirer.prompt([
-          {
-            type: "confirm",
-            name: "confirmDelete",
-            message: chalk.red(
-              `Are you sure you want to delete ${selectedGame}?`
-            ),
-            default: false,
-          },
-        ]);
-
-        if (confirmDelete) {
-          const deleteResult = this.pgnExporter.deleteGame(selectedGame);
-          if (deleteResult.success) {
-            console.log(chalk.green(`✓ Deleted ${selectedGame}`));
-          } else {
-            console.log(
-              chalk.red(`❌ Error deleting game: ${deleteResult.error}`)
-            );
-          }
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-        }
-        return true;
-
-      case "← Back to games list":
-        return true;
-      default:
-        return true;
     }
   }
 
@@ -831,7 +579,7 @@ class ChessArena {
       this.roomCode = null;
       this.playerColor = null;
       this.isMyTurn = false;
-      this.openingDetector.reset(); // ADD THIS LINE
+      this.openingDetector.reset();
       if (this.socket) {
         this.socket.disconnect();
       }
