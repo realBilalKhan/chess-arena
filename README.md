@@ -114,7 +114,7 @@ npm run server:dev     # Start server in development mode
 
 ## Server Configuration
 
-Chess Arena's online multiplayer is powered by a server hosted on [Hack Club's Nest](https://hackclub.com/nest), connecting by default to `https://chess.bilalkhan.hackclub.app:3456`.
+Chess Arena's online multiplayer is powered by a server hosted on [Hack Club's Nest](https://hackclub.com/nest), connecting by default to `http://chess.bilalkhan.hackclub.app:3456`.
 
 **Switch to Local Server**:
 
@@ -133,7 +133,7 @@ chess-arena -s http://localhost:3000
 **Switch Back to Deployed Server**:
 
 ```bash
-chess-arena -s https://chess.bilalkhan.hackclub.app:3456
+chess-arena -s http://chess.bilalkhan.hackclub.app:3456
 ```
 
 **Check Current Server**:

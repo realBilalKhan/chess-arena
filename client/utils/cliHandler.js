@@ -124,7 +124,7 @@ export class CLIHandler {
       console.log(chalk.green("✓ Configuration reset successfully!"));
       console.log(chalk.gray("Theme: classic"));
       console.log(
-        chalk.gray("Server: https://chess.bilalkhan.hackclub.app:3456")
+        chalk.gray("Server: http://chess.bilalkhan.hackclub.app:3456")
       );
     } else {
       console.log(chalk.red("❌ Failed to reset configuration"));
