@@ -10,8 +10,9 @@ class StockfishEngine {
     this.onMoveCallback = null;
     this.onEvaluationCallback = null;
     this.difficulty = "medium";
-    this.evaluationDepth = 12;
+    this.evaluationDepth = 12; // depth for position analysis
 
+    // Different skill levels
     this.difficultySettings = {
       easy: {
         skill: 1,
@@ -40,6 +41,7 @@ class StockfishEngine {
   async init() {
     return new Promise((resolve, reject) => {
       try {
+        // Try common Stockfish installation paths
         const stockfishBinaries = [
           "stockfish",
           "stockfish.exe",
@@ -71,6 +73,7 @@ class StockfishEngine {
           );
         }
 
+        // Handle engine output
         this.engine.stdout.on("data", (data) => {
           const output = data.toString();
 
@@ -200,6 +203,7 @@ class StockfishEngine {
     return new Promise((resolve) => {
       this.onMoveCallback = resolve;
 
+      // Set position and ask for best move
       this.sendCommand(`position fen ${fen}`);
 
       const settings = this.difficultySettings[this.difficulty];
@@ -216,6 +220,7 @@ class StockfishEngine {
       this.sendCommand(`position fen ${fen}`);
       this.sendCommand(`go depth ${this.evaluationDepth}`);
 
+      // Timeout if evaluation takes too long
       setTimeout(() => {
         this.onEvaluationCallback = null;
         resolve(null);
@@ -223,6 +228,7 @@ class StockfishEngine {
     });
   }
 
+  // Analyze how good/bad a move was
   evaluateMoveQuality(beforeEval, afterEval, isPlayerMove = true) {
     if (!beforeEval || !afterEval) {
       return {
@@ -239,6 +245,7 @@ class StockfishEngine {
 
     let quality, description, color;
 
+    // Move quality thresholds (in centipawns)
     if (difference >= 100) {
       quality = "excellent";
       description = "Excellent move!";
@@ -274,11 +281,14 @@ class StockfishEngine {
     };
   }
 
+  // Convert engine evaluation to centipawns (1 pawn = 100 centipawns)
   evaluationToCentipawns(evaluation, fromWhitePerspective = true) {
     if (evaluation.type === "mate") {
+      // Mate is worth way more than any material
       const mateValue = evaluation.value > 0 ? 10000 : -10000;
       return fromWhitePerspective ? mateValue : -mateValue;
     } else {
+      // Regular centipawn evaluation
       return fromWhitePerspective ? evaluation.value : -evaluation.value;
     }
   }
@@ -317,6 +327,7 @@ class StockfishEngine {
     return this.difficultySettings[this.difficulty];
   }
 
+  // Get all available difficulties for UI
   getAllDifficulties() {
     return Object.entries(this.difficultySettings).map(([key, value]) => ({
       name: key.charAt(0).toUpperCase() + key.slice(1),

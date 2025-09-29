@@ -4,14 +4,15 @@ import boxen from "boxen";
 class BoardRenderer {
   constructor(themeManager) {
     this.themeManager = themeManager;
-    this.highlightedSquares = new Set();
-    this.selectedSquare = null;
+    this.highlightedSquares = new Set(); // squares where selected piece can move
+    this.selectedSquare = null; // currently selected square
   }
 
   setSelectedSquare(square, legalMoves = []) {
     this.selectedSquare = square;
     this.highlightedSquares.clear();
 
+    // Highlight all squares this piece can move to
     legalMoves.forEach((move) => {
       if (move.from === square) {
         this.highlightedSquares.add(move.to);
@@ -32,13 +33,16 @@ class BoardRenderer {
     return this.selectedSquare === square;
   }
 
+  // Get background color for a square based on selection/highlight state
   getSquareBackground(isLightSquare, square) {
     const baseStyle = this.themeManager.getSquareStyle(isLightSquare);
 
+    // Yellow background for selected piece
     if (this.isSelected(square)) {
       return isLightSquare ? chalk.bgYellow.black : chalk.bgYellow.gray;
     }
 
+    // Green background for possible moves
     if (this.isHighlighted(square)) {
       return isLightSquare ? chalk.bgGreen.black : chalk.bgGreen.white;
     }
@@ -50,27 +54,31 @@ class BoardRenderer {
     const board = chess.board();
     const files = ["a", "b", "c", "d", "e", "f", "g", "h"];
 
+    // Flip board perspective based on player color
     const ranks =
       playerColor === "white"
-        ? [8, 7, 6, 5, 4, 3, 2, 1]
-        : [1, 2, 3, 4, 5, 6, 7, 8];
+        ? [8, 7, 6, 5, 4, 3, 2, 1] // white on bottom
+        : [1, 2, 3, 4, 5, 6, 7, 8]; // black on bottom
     const displayFiles = playerColor === "white" ? files : [...files].reverse();
 
     if (options.clear) {
       console.clear();
     }
 
+    // Top file labels (a-h)
     console.log(
       "     " + displayFiles.map((f) => chalk.bold.gray(f)).join("       ")
     );
 
     ranks.forEach((rank) => {
-      const row = board[8 - rank];
+      const row = board[8 - rank]; // chess.js uses 0-7 indexing
       const displayRow = playerColor === "white" ? row : [...row].reverse();
 
+      // Each square is 3 lines tall for better visual spacing
       for (let line = 0; line < 3; line++) {
         let rowDisplay = "";
 
+        // Rank numbers (1-8) only on middle line
         if (line === 1) {
           rowDisplay += chalk.bold.gray(rank) + " ";
         } else {
@@ -159,11 +167,13 @@ class BoardRenderer {
       lines.push(`${chalk.bold("Opponent:")} ${additionalInfo.opponent}`);
     }
 
+    // Different messages based on whose turn it is
     const statusMsg = isPlayerTurn
       ? chalk.greenBright.bold("YOUR TURN!")
       : chalk.yellowBright("Waiting for opponent...");
     lines.push(`${chalk.bold("Status:")} ${statusMsg}`);
 
+    // Show current input mode
     if (this.selectedSquare) {
       lines.push(
         `${chalk.bold("Mode:")} ${chalk.magenta(

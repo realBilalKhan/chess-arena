@@ -1,15 +1,41 @@
 <h1 align="center">Chess Arena</h1>
 
 <p align="center">
+  <i>Play chess anywhere from your terminal, with friends online via Hack Club's Nest or offline with Stockfish</i>
+</p>
+
+<p align="center">
   <img src="https://github.com/realBilalKhan/chess-arena/workflows/Deploy%20to%20Nest/badge.svg" alt="Deploy Status">
   <img src="https://img.shields.io/badge/node-%3E%3D14.0.0-339933?style=flat&logo=node.js&logoColor=white" alt="Node.js Version">
-  <img src="https://img.shields.io/npm/v/chess-arena?style=flat&logo=npm&logoColor=white&color=cb3837" alt="npm Version">
+  <a href="https://www.npmjs.com/package/pixpress">
+    <img src="https://img.shields.io/npm/v/chess-arena?style=flat&logo=npm&logoColor=white&color=cb3837" alt="npm Version">
+  </a>
+  <a href="https://github.com/realBilalKhan/pixpress/blob/main/LICENSE">
+    <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT">
+  </a>
 </p>
+
+<p align="center">
+  <img src="">
+</p>
+
+## Table of Contents
+
+- [Quick Start](#quick-start)
+- [For Offline Play (vs Stockfish AI)](#for-offline-play-vs-stockfish-ai)
+  - [Easy Installation (Recommended)](#easy-installation-recommended)
+  - [Manual Installation](#manual-installation)
+  - [Verify Installation](#verify-installation)
+- [Command Line Options](#command-line-options)
+- [Creating Custom Themes](#creating-custom-themes)
+- [NPM Scripts](#npm-scripts)
+- [Server Configuration](#server-configuration)
+- [Data Storage Location](#data-storage-location)
 
 ## Quick Start
 
 ```bash
-# Install the game
+# Install the game globally
 npm install -g chess-arena
 
 # Start playing
@@ -47,7 +73,7 @@ stockfish --version
 | `chess-arena -l`                | List all available themes with descriptions  |
 | `chess-arena -p`                | Preview all themes with sample boards        |
 | `chess-arena -t <theme>`        | Set board theme (see available themes below) |
-| `chess-arena -s <url>`          | Set custom server URL                        |
+| `chess-arena -s <url>`          | Set custom server URL (e.g., localhost:3000) |
 | `chess-arena -h`                | Show comprehensive help message              |
 | `chess-arena -c`                | Show current saved configuration             |
 | `chess-arena -r`                | Reset all settings to defaults               |
@@ -82,6 +108,38 @@ npm run dev            # Start with file watching
 npm run themes         # List available themes
 npm run preview        # Preview all themes
 npm run install-stockfish  # Install Stockfish engine
+npm run server         # Start the multiplayer server
+npm run server:dev     # Start server in development mode
+```
+
+## Server Configuration
+
+Chess Arena's online multiplayer is powered by a server hosted on [Hack Club's Nest](https://hackclub.com/nest), connecting by default to `https://chess.bilalkhan.hackclub.app:3456`.
+
+**Switch to Local Server**:
+
+```bash
+# Start local server
+npm run server
+
+# Configure client to use localhost
+chess-arena -s http://localhost:3000
+
+# Or for development mode
+npm run server:dev
+chess-arena -s http://localhost:3000
+```
+
+**Switch Back to Deployed Server**:
+
+```bash
+chess-arena -s https://chess.bilalkhan.hackclub.app:3456
+```
+
+**Check Current Server**:
+
+```bash
+chess-arena -c
 ```
 
 ## Data Storage Location

@@ -6,6 +6,7 @@ import {
   validateTheme,
 } from "./cliArgs.js";
 
+// Handles all command-line arg processing and config management
 export class CLIHandler {
   constructor(configManager, themeManager, soundManager) {
     this.configManager = configManager;
@@ -16,6 +17,7 @@ export class CLIHandler {
   handleCliArgs() {
     const args = parseCliArgs();
 
+    // Info commands that exit immediately
     if (args.help) {
       showHelp();
       process.exit(0);
@@ -41,10 +43,12 @@ export class CLIHandler {
       process.exit(0);
     }
 
+    // Configuration commands that can be combined
     if (args.theme) {
       if (!validateTheme(args.theme)) {
         process.exit(1);
       }
+      // Set theme both for current session and save to config
       this.themeManager.setTheme(args.theme);
       this.configManager.setTheme(args.theme);
       console.log(
@@ -76,6 +80,7 @@ export class CLIHandler {
     }
   }
 
+  // Display current configuration with file info and modification dates
   showCurrentConfig() {
     const config = this.configManager.getConfig();
     const stats = this.configManager.getConfigStats();
@@ -95,6 +100,7 @@ export class CLIHandler {
       )}`
     );
 
+    // Show file metadata if config exists
     if (stats.exists) {
       console.log(
         `${chalk.bold("Last Updated:")} ${chalk.gray(
@@ -108,6 +114,7 @@ export class CLIHandler {
     console.log(`\n${chalk.gray("Use --reset-config to restore defaults")}`);
   }
 
+  // Reset all settings to default values
   resetConfig() {
     console.log(chalk.yellow("🔄 Resetting configuration to defaults..."));
 
@@ -116,7 +123,9 @@ export class CLIHandler {
     if (success) {
       console.log(chalk.green("✓ Configuration reset successfully!"));
       console.log(chalk.gray("Theme: classic"));
-      console.log(chalk.gray("Server: http://bilalkhan.hackclub.app:3456"));
+      console.log(
+        chalk.gray("Server: https://chess.bilalkhan.hackclub.app:3456")
+      );
     } else {
       console.log(chalk.red("❌ Failed to reset configuration"));
     }
@@ -129,7 +138,7 @@ export class CLIHandler {
     themeNames.forEach((themeName) => {
       this.themeManager.setTheme(themeName);
       this.themeManager.previewTheme();
-      console.log("\n" + "─".repeat(50) + "\n");
+      console.log("\n" + "─".repeat(50) + "\n"); // Visual separator between themes
     });
   }
 }

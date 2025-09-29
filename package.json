@@ -1,0 +1,61 @@
+{
+  "name": "chess-arena",
+  "version": "1.0.0",
+  "description": "Play chess anywhere from your terminal. Challenge friends online, take on Stockfish offline, customize themes, enjoy sound effects, with PGNs auto-exported.",
+  "type": "module",
+  "main": "client/index.js",
+  "bin": {
+    "chess-arena": "./client/index.js",
+    "install-stockfish": "./client/utils/installStockfish.js"
+  },
+  "scripts": {
+    "start": "node client/index.js",
+    "dev": "node --watch client/index.js",
+    "themes": "node client/index.js --list-themes",
+    "preview": "node client/index.js --preview-themes",
+    "install-stockfish": "node client/utils/installStockfish.js",
+    "server": "node server/server.js",
+    "server:dev": "cd server && npm run dev",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "prepublishOnly": "npm run test"
+  },
+  "keywords": [
+    "chess",
+    "terminal",
+    "cli",
+    "multiplayer",
+    "stockfish",
+    "nodejs",
+    "socketio",
+    "game",
+    "pgn",
+    "chess-engine",
+    "terminal-game",
+    "real-time",
+    "javascript"
+  ],
+  "author": "M. Bilal Khan <intelligencexempire@gmail.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/realBilalKhan/chess-arena.git"
+  },
+  "bugs": {
+    "url": "https://github.com/realBilalKhan/chess-arena/issues"
+  },
+  "homepage": "https://github.com/realBilalKhan/chess-arena#readme",
+  "dependencies": {
+    "boxen": "^8.0.1",
+    "chalk": "^5.6.0",
+    "chess.js": "^1.4.0",
+    "clear": "^0.1.0",
+    "figlet": "^1.8.2",
+    "inquirer": "^12.9.4",
+    "socket.io-client": "^4.8.1",
+    "stockfish": "^17.1.0"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "preferGlobal": true
+}

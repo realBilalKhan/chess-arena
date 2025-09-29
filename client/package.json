@@ -3,10 +3,6 @@
   "version": "1.0.0",
   "type": "module",
   "main": "index.js",
-  "bin": {
-    "chess-arena": "./index.js",
-    "install-stockfish": "./utils/installStockfish.js"
-  },
   "scripts": {
     "start": "node index.js",
     "dev": "node --watch index.js",

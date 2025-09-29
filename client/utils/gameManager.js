@@ -1,6 +1,7 @@
 import chalk from "chalk";
 import inquirer from "inquirer";
 
+// Manages saved chess games
 export class GameManager {
   constructor(pgnExporter) {
     this.pgnExporter = pgnExporter;
@@ -10,6 +11,7 @@ export class GameManager {
     while (true) {
       const games = this.pgnExporter.listSavedGames();
 
+      // Handle empty games directory
       if (games.length === 0) {
         console.log(chalk.yellow("\n📂 No saved games found."));
         console.log(
@@ -26,6 +28,7 @@ export class GameManager {
         return;
       }
 
+      // Build game list with creation dates for easier identification
       const gameChoices = games.map((game) => ({
         name: `${game.filename} (${game.created.toLocaleDateString()})`,
         value: game.filename,
@@ -47,6 +50,7 @@ export class GameManager {
         return;
       }
 
+      // Process the selected game and continue if user wants to manage more
       const continueManaging = await this.handleGameAction(selectedGame);
       if (!continueManaging) {
         return;
@@ -54,6 +58,7 @@ export class GameManager {
     }
   }
 
+  // Handle individual game actions
   async handleGameAction(selectedGame) {
     const { gameAction } = await inquirer.prompt([
       {
@@ -98,6 +103,7 @@ export class GameManager {
             const util = await import("util");
             const execPromise = util.promisify(exec);
 
+            // Cross-platform clipboard commands
             let command;
             if (process.platform === "darwin") {
               command = "pbcopy";
@@ -112,6 +118,7 @@ export class GameManager {
             );
             console.log(chalk.green(`\n✓ Game content copied to clipboard!\n`));
           } catch (error) {
+            // Fallback: show content for manual copying if clipboard fails
             console.log(
               chalk.yellow("\n⚠️ Could not copy to clipboard automatically")
             );
@@ -128,6 +135,7 @@ export class GameManager {
         return true;
 
       case "🗑️ Delete game":
+        // Require explicit confirmation for destructive action
         const { confirmDelete } = await inquirer.prompt([
           {
             type: "confirm",

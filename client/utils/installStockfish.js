@@ -1,3 +1,5 @@
+#! /usr/bin/env node
+
 import { exec } from "child_process";
 import { promisify } from "util";
 import chalk from "chalk";
@@ -7,17 +9,19 @@ import os from "os";
 
 const execAsync = promisify(exec);
 
+// Handles Stockfish chess engine installation across different platforms
 class StockfishInstaller {
   constructor() {
     this.platform = os.platform();
   }
 
+  // Check if Stockfish is already installed
   async checkStockfishInstalled() {
     try {
       const commands = [
         "stockfish --version",
-        "which stockfish",
-        "where stockfish",
+        "which stockfish", // Unix/Linux
+        "where stockfish", // Windows
       ];
 
       for (const cmd of commands) {
@@ -34,6 +38,7 @@ class StockfishInstaller {
     }
   }
 
+  // Get platform-specific installation instructions and commands
   getInstallInstructions() {
     const instructions = {
       darwin: {
@@ -74,6 +79,7 @@ class StockfishInstaller {
   getLinuxInstallCommand() {
     try {
       const fs = require("fs");
+      // Check common distribution identifier files
       if (fs.existsSync("/etc/debian_version")) {
         return "sudo apt-get update && sudo apt-get install stockfish";
       } else if (fs.existsSync("/etc/redhat-release")) {
@@ -140,6 +146,7 @@ class StockfishInstaller {
       }
     }
 
+    // Fallback: offer to open download page
     const { openBrowser } = await inquirer.prompt([
       {
         type: "confirm",
@@ -166,6 +173,7 @@ class StockfishInstaller {
     console.log(chalk.yellow("\n🔧 Attempting automatic installation..."));
 
     try {
+      // Check if package manager is available first
       if (instructions.checkCommand) {
         try {
           await execAsync(instructions.checkCommand);
@@ -190,6 +198,7 @@ class StockfishInstaller {
       if (stdout) console.log(stdout);
       if (stderr && !stderr.includes("Warning")) console.error(stderr);
 
+      // Verify installation was successful
       const isNowInstalled = await this.checkStockfishInstalled();
 
       if (isNowInstalled) {
@@ -215,6 +224,7 @@ class StockfishInstaller {
     }
   }
 
+  // Public method to check and prompt for installation if needed
   async verifyAndPrompt() {
     const isInstalled = await this.checkStockfishInstalled();
 
@@ -229,6 +239,7 @@ class StockfishInstaller {
 
 export default StockfishInstaller;
 
+// Allow running as standalone script for testing
 if (import.meta.url === `file://${process.argv[1]}`) {
   const installer = new StockfishInstaller();
   installer.verifyAndPrompt().then((installed) => {

@@ -2,17 +2,19 @@ import inquirer from "inquirer";
 import chalk from "chalk";
 import boxen from "boxen";
 
+// Handles chess move input and selection mode
 class MoveInputHandler {
   constructor(boardRenderer, themeManager) {
     this.boardRenderer = boardRenderer;
     this.themeManager = themeManager;
-    this.selectionMode = false;
-    this.tipShown = false;
+    this.selectionMode = false; // Track if user is in piece selection mode
+    this.tipShown = false; // Show tip only once per game
   }
 
   async promptMove(chess, playerColor) {
     const moves = chess.moves({ verbose: true });
 
+    // Show tip on first move
     if (!this.selectionMode && !this.tipShown) {
       console.log(
         chalk.gray(
@@ -32,12 +34,14 @@ class MoveInputHandler {
         validate: (value) => {
           const lowerValue = value.toLowerCase();
 
+          // Commands are always valid
           if (
             ["help", "hint", "quit", "cancel", "clear"].includes(lowerValue)
           ) {
             return true;
           }
 
+          // In selection mode: validate destination squares
           if (this.selectionMode) {
             if (this.isValidSquare(value)) {
               const from = this.boardRenderer.selectedSquare;
@@ -51,6 +55,7 @@ class MoveInputHandler {
             return "Invalid square notation (use format like 'e4')";
           }
 
+          // Normal mode: validate piece selection
           if (this.isValidSquare(value)) {
             const square = value.toLowerCase();
             const piece = chess.get(square);
@@ -95,6 +100,7 @@ class MoveInputHandler {
     return this.handleInput(input, chess, playerColor, moves);
   }
 
+  // Process validated input and return appropriate action
   async handleInput(input, chess, playerColor, moves) {
     const lowerInput = input.toLowerCase();
 
@@ -233,6 +239,7 @@ class MoveInputHandler {
 
     const helpLines = [];
 
+    // Format each piece's moves with capture indicators
     Object.keys(movesByPiece).forEach((key) => {
       const { piece, moves: pieceMoves } = movesByPiece[key];
       const [type, from] = key.split("-");
@@ -241,7 +248,7 @@ class MoveInputHandler {
       const moveNotations = pieceMoves.map((m) => {
         const targetPiece = chess.get(m.to);
         if (targetPiece) {
-          return chalk.red(`${m.from}-${m.to}×`);
+          return chalk.red(`${m.from}-${m.to}×`); // Red for captures
         }
         return `${m.from}-${m.to}`;
       });
@@ -249,6 +256,7 @@ class MoveInputHandler {
       helpLines.push(`${pieceSymbol} ${from}: ${moveNotations.join(", ")}`);
     });
 
+    // Add legend and usage tips
     helpLines.push(chalk.gray("\n× = capture"));
     helpLines.push(
       chalk.gray("Type a square (e.g., 'e2') to select and highlight moves")

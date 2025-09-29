@@ -24,7 +24,7 @@ class ChessArena {
     this.chess = new Chess();
     this.socket = null;
     this.roomCode = null;
-    this.playerColor = null;
+    this.playerColor = null; // 'white' or 'black'
     this.isMyTurn = false;
     this.pgnExporter = new PGNExporter();
     this.configManager = new ConfigManager();
@@ -53,12 +53,14 @@ class ChessArena {
     );
   }
 
+  // Entry point
   async start() {
     clear();
     console.log(
       chalk.yellow(figlet.textSync("Chess Arena", { horizontalLayout: "full" }))
     );
 
+    // Show current theme info
     const currentTheme = this.themeManager.getCurrentTheme();
     console.log(
       boxen(
@@ -73,6 +75,7 @@ class ChessArena {
       )
     );
 
+    // Main menu options
     const { action } = await inquirer.prompt([
       {
         type: "list",
@@ -89,19 +92,21 @@ class ChessArena {
       },
     ]);
 
+    // Handle sound toggle
     if (action.startsWith("🔊 Sound")) {
       const enabled = this.soundManager.toggle();
       console.log(
         chalk.green(`\n🔊 Sound ${enabled ? "enabled" : "disabled"}`)
       );
       await new Promise((resolve) => setTimeout(resolve, 1000));
-      return this.start();
+      return this.start(); // Back to main menu
     }
 
     if (action === "Exit") {
       process.exit(0);
     }
 
+    // Theme selection
     if (action === "🎨 Change theme") {
       const result = await selectThemeInteractively(this.themeManager);
       if (result && result.themeName) {
@@ -117,16 +122,19 @@ class ChessArena {
       return this.start();
     }
 
+    // Game management (view/load saved games)
     if (action === "📁 Manage saved games") {
       await this.gameManager.manageSavedGames();
       return this.start();
     }
 
+    // Start offline game against computer
     if (action === "🤖 Play Offline vs Stockfish") {
       await this.startOfflineGame();
       return;
     }
 
+    // Online game submenu
     const { onlineAction } = await inquirer.prompt([
       {
         type: "list",
@@ -140,6 +148,7 @@ class ChessArena {
       return this.start();
     }
 
+    // Connect to server first
     await this.connectToServer();
 
     if (onlineAction === "Create a new game") {
@@ -179,15 +188,17 @@ class ChessArena {
     }
   }
 
+  // Connect to socket.io server
   connectToServer() {
     return new Promise((resolve, reject) => {
       const serverUrl = this.configManager.getServerUrl();
       console.log(chalk.gray("🔄 Connecting to server..."));
 
       this.socket = io(serverUrl, {
-        transports: ["websocket", "polling"],
+        transports: ["websocket", "polling"], // Fallback to polling if WebSocket fails
       });
 
+      // Timeout if server is unreachable
       const connectionTimeout = setTimeout(() => {
         this.socket.disconnect();
         console.log(
@@ -327,6 +338,7 @@ class ChessArena {
       }
     );
 
+    // Show opening name if we're still in book
     const opening = this.openingDetector.detectOpening(this.chess);
     if (opening) {
       this.openingDetector.displayOpeningInfo(opening);
@@ -355,6 +367,7 @@ class ChessArena {
       }
     });
 
+    // Only show if there are captures
     if (capturedWhite.length > 0 || capturedBlack.length > 0) {
       console.log(chalk.gray("\n  Captured pieces:"));
       if (capturedWhite.length > 0) {
@@ -368,6 +381,7 @@ class ChessArena {
     }
   }
 
+  // Start game loop
   async playGame() {
     this.soundManager.playGameStart();
     this.displayBoard();
@@ -417,8 +431,11 @@ class ChessArena {
         return this.promptMove();
     }
 
+    // Handle actual chess moves
     if (result.type === "move") {
       let promotion = result.promotion;
+
+      // If pawn reaches end, ask what to promote to
       if (promotion) {
         const { piece } = await inquirer.prompt([
           {
@@ -443,11 +460,13 @@ class ChessArena {
       };
 
       try {
+        // Validate and execute move locally
         const move = this.chess.move(moveObj);
 
         if (move) {
           this.soundManager.playMoveSound(move, this.chess);
 
+          // Send move to opponent
           this.socket.emit("move", { roomCode: this.roomCode, move: moveObj });
           this.isMyTurn = false;
 
@@ -476,13 +495,14 @@ class ChessArena {
 
   handleGameOver() {
     const moves = this.chess.history().length;
-    const duration = Math.floor(moves / 2);
+    const duration = Math.floor(moves / 2); // Rough estimate
 
     let title = "Game Over";
     let message = "";
     let borderColor = this.themeManager.getBorderColor();
     let gameResult = "*";
 
+    // Check different types of game endings
     if (this.chess.isCheckmate()) {
       const winner = this.chess.turn() === "w" ? "Black" : "White";
       const isWinner = winner.toLowerCase() === this.playerColor;
@@ -514,6 +534,7 @@ class ChessArena {
       gameResult = "1/2-1/2";
       this.soundManager.playSound("draw");
 
+      // Different types of draws
       if (this.chess.isStalemate()) {
         title = "⚖️ Stalemate";
         message = chalk.cyan("No legal moves - game is a draw!");
@@ -530,6 +551,7 @@ class ChessArena {
       borderColor = "cyan";
     }
 
+    // Add game stats
     message +=
       "\n\n" +
       chalk.gray("Game Statistics:") +
@@ -549,6 +571,7 @@ class ChessArena {
       })
     );
 
+    // Save game as PGN
     const gameInfo = {
       event: "Chess Arena Online Game",
       white: this.playerColor === "white" ? "Player" : "Opponent",
@@ -575,6 +598,7 @@ class ChessArena {
     ]);
 
     if (playAgain) {
+      // Reset everything for new game
       this.chess = new Chess();
       this.roomCode = null;
       this.playerColor = null;
@@ -591,5 +615,6 @@ class ChessArena {
   }
 }
 
+// Start the application
 const game = new ChessArena();
 game.start().catch(console.error);

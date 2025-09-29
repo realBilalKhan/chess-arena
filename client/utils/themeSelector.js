@@ -11,6 +11,7 @@ export async function selectThemeInteractively(currentThemeManager = null) {
     clear();
     console.log(chalk.yellow.bold("🎨 Theme Selection\n"));
 
+    // Show current theme info
     const currentTheme = themeManager.getCurrentTheme();
     console.log(
       boxen(
@@ -40,6 +41,7 @@ export async function selectThemeInteractively(currentThemeManager = null) {
       },
     ]);
 
+    // Handle user choice
     if (action === "back") {
       return null;
     }
@@ -50,7 +52,7 @@ export async function selectThemeInteractively(currentThemeManager = null) {
 
     if (action === "preview") {
       await previewAllThemes(themeManager);
-      continue;
+      continue; // Return to main menu after preview
     }
 
     if (action === "select") {
@@ -78,6 +80,7 @@ async function selectTheme(themeManager) {
   clear();
   themeManager.previewTheme();
 
+  // Ask for confirmation
   const { confirm } = await inquirer.prompt([
     {
       type: "confirm",
@@ -95,7 +98,7 @@ async function selectTheme(themeManager) {
     return { themeName, themeManager };
   }
 
-  return null;
+  return null; // User didn't confirm, go back to selection
 }
 
 async function previewAllThemes(themeManager) {
@@ -105,6 +108,7 @@ async function previewAllThemes(themeManager) {
   while (true) {
     clear();
 
+    // Apply and show current theme
     const currentThemeName = themes[currentIndex];
     themeManager.setTheme(currentThemeName);
 
@@ -115,6 +119,7 @@ async function previewAllThemes(themeManager) {
     );
     themeManager.previewTheme();
 
+    // Show navigation instructions
     console.log(
       boxen(
         `${chalk.bold("Navigation:")}\n` +
@@ -157,6 +162,7 @@ async function previewAllThemes(themeManager) {
 
     const cmd = action.toLowerCase();
 
+    // Handle navigation commands
     if (cmd === "q" || cmd === "quit") {
       break;
     }
@@ -171,6 +177,7 @@ async function previewAllThemes(themeManager) {
       return { themeName: themes[currentIndex], themeManager };
     }
 
+    // Navigate through themes
     if (cmd === "n" || cmd === "next") {
       currentIndex = (currentIndex + 1) % themes.length;
     }

@@ -2,7 +2,7 @@ import { PersistenceManager } from "../utils/persistence.js";
 
 export const DEFAULT_CONFIG = {
   theme: "classic",
-  serverUrl: "http://localhost:3000",
+  serverUrl: "https://chess.bilalkhan.hackclub.app:3456",
   showPreview: true,
   autoConnect: true,
   soundEnabled: true,
