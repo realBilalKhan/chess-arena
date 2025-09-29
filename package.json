@@ -1,6 +1,6 @@
 {
   "name": "chess-arena",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Play chess anywhere from your terminal. Challenge friends online, take on Stockfish offline, customize themes, enjoy sound effects, with PGNs auto-exported.",
   "type": "module",
   "main": "client/index.js",
