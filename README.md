@@ -1,22 +1,22 @@
 <h1 align="center">Chess Arena</h1>
 
 <p align="center">
-  <i>Play chess anywhere from your terminal, with friends online via Hack Club's Nest or offline with Stockfish</i>
+  <i>Play chess anywhere from your terminal, with friends online or offline with Stockfish</i>
 </p>
 
 <p align="center">
   <img src="https://github.com/realBilalKhan/chess-arena/workflows/Deploy%20to%20Nest/badge.svg" alt="Deploy Status">
   <img src="https://img.shields.io/badge/node-%3E%3D14.0.0-339933?style=flat&logo=node.js&logoColor=white" alt="Node.js Version">
-  <a href="https://www.npmjs.com/package/pixpress">
+  <a href="https://www.npmjs.com/package/chess-arena">
     <img src="https://img.shields.io/npm/v/chess-arena?style=flat&logo=npm&logoColor=white&color=cb3837" alt="npm Version">
   </a>
-  <a href="https://github.com/realBilalKhan/pixpress/blob/main/LICENSE">
+  <a href="https://github.com/realBilalKhan/chess-arena/blob/main/LICENSE">
     <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT">
   </a>
 </p>
 
 <p align="center">
-  <img src="">
+  <img src="https://hc-cdn.hel1.your-objectstorage.com/s/v3/d47a9babc6366c626cd1f6afe64a86729e1e3294_asd_20250929_194314_b368be.jpg" alt="Demo Screenshot">
 </p>
 
 ## Table of Contents
@@ -72,7 +72,7 @@ stockfish --version
 | `chess-arena`                   | Start the game with default settings         |
 | `chess-arena -l`                | List all available themes with descriptions  |
 | `chess-arena -p`                | Preview all themes with sample boards        |
-| `chess-arena -t <theme>`        | Set board theme (see available themes below) |
+| `chess-arena -t <theme>`        | Set board theme                              |
 | `chess-arena -s <url>`          | Set custom server URL (e.g., localhost:3000) |
 | `chess-arena -h`                | Show comprehensive help message              |
 | `chess-arena -c`                | Show current saved configuration             |
