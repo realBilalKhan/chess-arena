@@ -30,6 +30,7 @@
 - [Creating Custom Themes](#creating-custom-themes)
 - [NPM Scripts](#npm-scripts)
 - [Server Configuration](#server-configuration)
+- [Troubleshooting](#troubleshooting)
 - [Data Storage Location](#data-storage-location)
 
 ## Quick Start
@@ -41,6 +42,8 @@ npm install -g chess-arena
 # Start playing
 chess-arena
 ```
+
+**Alternative:** If the `chess-arena` command isn't recognized, use `npx chess-arena` instead.
 
 ## For Offline Play (vs Stockfish AI)
 
@@ -141,6 +144,33 @@ chess-arena -s http://chess.bilalkhan.hackclub.app:3456
 ```bash
 chess-arena -c
 ```
+
+## Troubleshooting
+
+### Command Not Recognized
+
+If you get the error `'chess-arena' is not recognized as an internal or external command` (Windows) or `command not found: chess-arena` (Mac/Linux):
+
+**Quick Fix:**
+
+```bash
+npx chess-arena
+```
+
+**Why this happens:** This is a PATH configuration issue. Your system isn't configured to find globally installed npm packages. This is more common on Windows but can occur on Mac/Linux too.
+
+**Permanent Fix (Optional):**
+
+1. Find npm's global directory:
+   ```bash
+   npm config get prefix
+   ```
+2. Add that path to your system PATH:
+   - **Windows:** Environment Variables in System Properties
+   - **Mac/Linux:** Add to `~/.bashrc`, `~/.zshrc`, or `~/.profile`
+3. Restart your terminal
+
+**Bottom line:** `npx chess-arena` works perfectly and is a valid way to run the application!
 
 ## Data Storage Location
 
